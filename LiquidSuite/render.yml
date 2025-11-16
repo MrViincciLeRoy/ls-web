@@ -1,0 +1,80 @@
+# ============================================================================
+# render.yaml - Render Blueprint for LSuite
+# Deploy Flask web app with external Aiven PostgreSQL + Valkey
+# ============================================================================
+
+services:
+  # ===========================
+  # Flask Web Application
+  # ===========================
+  - type: web
+    name: lsuite-web
+    env: docker
+    dockerfilePath: ./Deployment/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    
+    # Environment Variables
+    envVars:
+      # Flask Configuration
+      - key: FLASK_ENV
+        value: production
+      
+      - key: FLASK_APP
+        value: app.py
+      
+      # Database (Aiven PostgreSQL - External)
+      - key: DATABASE_URL
+        sync: false
+      
+      - key: SQLALCHEMY_DATABASE_URI
+        sync: false
+      
+      # Cache/Queue (Aiven Valkey - External)
+      - key: CELERY_BROKER_URL
+        sync: false
+      
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      
+      # Security
+      - key: SECRET_KEY
+        generateValue: true
+      
+      # Google OAuth (Set in Render dashboard)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      
+      - key: GOOGLE_REDIRECT_URI
+        value: https://lsuite-web.onrender.com/gmail/oauth/callback
+      
+      # ERPNext (Optional - Set in dashboard)
+      - key: ERPNEXT_BASE_URL
+        sync: false
+      
+      - key: ERPNEXT_API_KEY
+        sync: false
+      
+      - key: ERPNEXT_API_SECRET
+        sync: false
+      
+      # Logging
+      - key: LOG_LEVEL
+        value: INFO
+      
+      - key: LOG_FILE
+        value: /var/log/lsuite.log
+    
+    # Health Check - using root endpoint
+    healthCheckPath: /
+    
+    # Auto-deploy from main branch
+    autoDeploy: true
+
+# ============================================================================
+# NO DATABASES SECTION - Using External Aiven Services
+# ============================================================================

@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block title %}Incoming Transaction Logs{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Incoming Transaction Logs</h2>
+            <p class="text-muted">Track all ERPNext sync operations and their status</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" id="refreshBtn">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+            <a href="{{ url_for('erpnext.sync_logs') }}" class="btn btn-outline-primary">
+                View ERPNext Sync Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h3 class="text-warning" id="pendingCount">0</h3>
+                    <small>Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h3 class="text-info" id="processingCount">0</h3>
+                    <small>Processing</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h3 class="text-success" id="successCount">0</h3>
+                    <small>Success</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h3 class="text-danger" id="failedCount">0</h3>
+                    <small>Failed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if logs.items %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Created</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Transaction</th>
+                            <th>ERPNext Journal</th>
+                            <th>Progress</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs.items %}
+                        <tr data-task-id="{{ log.task_id }}" data-status="{{ log.status }}" class="log-row">
+                            <td>{{ log.id }}</td>
+                            <td>
+                                <small>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                            </td>
+                            <td>
+                                <span class="badge badge-info">{{ log.transaction_type }}</span>
+                            </td>
+                            <td class="status-cell">
+                                {% if log.status == 'success' %}
+                                    <span class="badge badge-success">✓ Success</span>
+                                {% elif log.status == 'failed' %}
+                                    <span class="badge badge-danger">✗ Failed</span>
+                                {% elif log.status == 'processing' %}
+                                    <span class="badge badge-warning">
+                                        <span class="spinner-border spinner-border-sm"></span> Processing
+                                    </span>
+                                {% elif log.status == 'pending' %}
+                                    <span class="badge badge-secondary">
+                                        <span class="spinner-border spinner-border-sm"></span> Pending
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ log.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.transaction_id %}
+                                    <a href="{{ url_for('gmail.transactions') }}?id={{ log.transaction_id }}">
+                                        #{{ log.transaction_id }}
+                                    </a>
+                                {% else %}
+                                    <small class="text-muted">Bulk operation</small>
+                                {% endif %}
+                            </td>
+                            <td class="journal-cell">
+                                {% if log.erpnext_journal_entry %}
+                                    <code>{{ log.erpnext_journal_entry }}</code>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
+                            <td class="progress-cell">
+                                {% if log.completed_at %}
+                                    <small class="text-success">
+                                        ✓ {{ log.completed_at.strftime('%H:%M:%S') }}
+                                    </small>
+                                {% else %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%">0%</div>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.task_id and not log.completed_at %}
+                                    <button class="btn btn-sm btn-outline-info check-status" 
+                                            data-task-id="{{ log.task_id }}">
+                                        <i class="fas fa-info-circle"></i> Details
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if log.error_message %}
+                        <tr class="error-row">
+                            <td colspan="8" class="bg-light">
+                                <small class="text-danger">
+                                    <strong>Error:</strong> {{ log.error_message }}
+                                </small>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if logs.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if logs.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('erpnext.incoming_logs', page=logs.prev_num) }}">
+                    Previous
+                </a>
+            </li>
+            {% endif %}
+
+            {% for page_num in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    {% if page_num == logs.page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('erpnext.incoming_logs', page=page_num) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if logs.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('erpnext.incoming_logs', page=logs.next_num) }}">
+                    Next
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        No incoming transaction logs yet. Start syncing transactions to see logs here.
+    </div>
+    {% endif %}
+
+    <!-- Status Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Task Status</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="statusContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+}
+
+.log-row.updated {
+    animation: highlight 1s ease-in-out;
+}
+
+@keyframes highlight {
+    0% { background-color: #fff3cd; }
+    100% { background-color: transparent; }
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    let autoRefresh = true;
+    let refreshInterval;
+
+    // Update status counts
+    function updateStatusCounts() {
+        const rows = $('.log-row');
+        let pending = 0, processing = 0, success = 0, failed = 0;
+        
+        rows.each(function() {
+            const status = $(this).data('status');
+            if (status === 'pending') pending++;
+            else if (status === 'processing') processing++;
+            else if (status === 'success') success++;
+            else if (status === 'failed') failed++;
+        });
+        
+        $('#pendingCount').text(pending);
+        $('#processingCount').text(processing);
+        $('#successCount').text(success);
+        $('#failedCount').text(failed);
+        
+        // Auto-refresh if there are active tasks
+        if (pending > 0 || processing > 0) {
+            if (!refreshInterval) {
+                startAutoRefresh();
+            }
+        } else {
+            stopAutoRefresh();
+        }
+    }
+
+    // Check status for all active tasks
+    function checkActiveTasks() {
+        $('.log-row').each(function() {
+            const row = $(this);
+            const taskId = row.data('task-id');
+            const status = row.data('status');
+            
+            if (taskId && (status === 'pending' || status === 'processing')) {
+                $.get('/erpnext/tasks/' + taskId + '/status', function(data) {
+                    updateRowStatus(row, data);
+                }).fail(function() {
+                    console.log('Failed to fetch status for task:', taskId);
+                });
+            }
+        });
+    }
+
+    // Update row with new status
+    function updateRowStatus(row, data) {
+        const statusCell = row.find('.status-cell');
+        const journalCell = row.find('.journal-cell');
+        const progressCell = row.find('.progress-cell');
+        
+        // Update status badge
+        let statusHtml = '';
+        if (data.state === 'SUCCESS') {
+            statusHtml = '<span class="badge badge-success">✓ Success</span>';
+            row.data('status', 'success');
+            row.addClass('updated');
+        } else if (data.state === 'FAILURE') {
+            statusHtml = '<span class="badge badge-danger">✗ Failed</span>';
+            row.data('status', 'failed');
+            row.addClass('updated');
+        } else if (data.state === 'PROCESSING') {
+            statusHtml = '<span class="badge badge-warning"><span class="spinner-border spinner-border-sm"></span> Processing</span>';
+        } else {
+            statusHtml = '<span class="badge badge-secondary"><span class="spinner-border spinner-border-sm"></span> Pending</span>';
+        }
+        statusCell.html(statusHtml);
+        
+        // Update progress
+        if (data.progress) {
+            const percent = Math.round((data.progress.current / data.progress.total) * 100);
+            progressCell.html(
+                '<div class="progress" style="height: 20px;">' +
+                '<div class="progress-bar progress-bar-striped progress-bar-animated" ' +
+                'role="progressbar" style="width: ' + percent + '%">' + 
+                percent + '% (' + data.progress.current + '/' + data.progress.total + ')' +
+                '</div></div>'
+            );
+        } else if (data.state === 'SUCCESS') {
+            progressCell.html('<small class="text-success">✓ Completed</small>');
+        } else if (data.state === 'FAILURE') {
+            progressCell.html('<small class="text-danger">✗ Failed</small>');
+        }
+        
+        // Update journal entry if available
+        if (data.result && data.result.journal_entry) {
+            journalCell.html('<code>' + data.result.journal_entry + '</code>');
+        }
+        
+        updateStatusCounts();
+    }
+
+    // Start auto-refresh
+    function startAutoRefresh() {
+        if (!refreshInterval) {
+            refreshInterval = setInterval(function() {
+                checkActiveTasks();
+            }, 3000); // Check every 3 seconds
+        }
+    }
+
+    // Stop auto-refresh
+    function stopAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+    }
+
+    // Refresh button
+    $('#refreshBtn').click(function() {
+        $(this).prop('disabled', true);
+        $(this).html('<span class="spinner-border spinner-border-sm"></span> Refreshing...');
+        
+        checkActiveTasks();
+        
+        setTimeout(function() {
+            $('#refreshBtn').prop('disabled', false);
+            $('#refreshBtn').html('<i class="fas fa-sync"></i> Refresh');
+        }, 1000);
+    });
+
+    // Check status button
+    $('.check-status').click(function() {
+        const taskId = $(this).data('task-id');
+        
+        $('#statusModal').modal('show');
+        $('#statusContent').html('<div class="text-center"><div class="spinner-border"></div></div>');
+        
+        $.get('/erpnext/tasks/' + taskId + '/status', function(data) {
+            let html = '<dl class="row">';
+            html += '<dt class="col-sm-3">Task ID</dt><dd class="col-sm-9"><code>' + data.task_id + '</code></dd>';
+            html += '<dt class="col-sm-3">State</dt><dd class="col-sm-9"><span class="badge badge-' + 
+                    (data.state === 'SUCCESS' ? 'success' : data.state === 'FAILURE' ? 'danger' : 'warning') + 
+                    '">' + data.state + '</span></dd>';
+            html += '<dt class="col-sm-3">Status</dt><dd class="col-sm-9">' + data.status + '</dd>';
+            
+            if (data.progress) {
+                const percent = Math.round((data.progress.current / data.progress.total) * 100);
+                html += '<dt class="col-sm-3">Progress</dt><dd class="col-sm-9">';
+                html += '<div class="progress" style="height: 25px;">';
+                html += '<div class="progress-bar" style="width: ' + percent + '%">' + percent + '%</div>';
+                html += '</div>';
+                html += '<small>' + data.progress.current + ' / ' + data.progress.total;
+                if (data.progress.success) html += ' (✓ ' + data.progress.success + ' ✗ ' + data.progress.failed + ')';
+                html += '</small></dd>';
+            }
+            
+            if (data.result) {
+                if (data.result.messages) {
+                    html += '<dt class="col-sm-3">Messages</dt><dd class="col-sm-9">';
+                    html += '<ul class="list-unstyled mb-0">';
+                    data.result.messages.forEach(function(msg) {
+                        html += '<li><small>' + msg + '</small></li>';
+                    });
+                    html += '</ul></dd>';
+                } else {
+                    html += '<dt class="col-sm-3">Result</dt><dd class="col-sm-9"><pre>' + 
+                            JSON.stringify(data.result, null, 2) + '</pre></dd>';
+                }
+            }
+            
+            if (data.error) {
+                html += '<dt class="col-sm-3">Error</dt><dd class="col-sm-9 text-danger">' + 
+                        data.error + '</dd>';
+            }
+            
+            html += '</dl>';
+            
+            $('#statusContent').html(html);
+        }).fail(function() {
+            $('#statusContent').html('<div class="alert alert-danger">Failed to fetch status</div>');
+        });
+    });
+
+    // Initial setup
+    updateStatusCounts();
+    
+    // Start auto-refresh if there are active tasks
+    if ($('.log-row[data-status="pending"]').length > 0 || 
+        $('.log-row[data-status="processing"]').length > 0) {
+        startAutoRefresh();
+    }
+    
+    // Stop auto-refresh when page is hidden
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            if ($('.log-row[data-status="pending"]').length > 0 || 
+                $('.log-row[data-status="processing"]').length > 0) {
+                checkActiveTasks();
+                startAutoRefresh();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

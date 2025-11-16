@@ -1,0 +1,144 @@
+<!-- ============================================================
+     lsuite/templates/auth/ai_preferences.html
+     ============================================================ -->
+{% extends "base.html" %}
+
+{% block title %}AI Preferences - LSuite{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-brain"></i> Claude Haiku 4.5 AI Preferences</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>AI Model Settings</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.ai_preferences') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {{ form.ai_enabled(class="form-check-input") }}
+                            {{ form.ai_enabled.label(class="form-check-label") }}
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            Enable or disable Claude Haiku 4.5 AI assistance across all clients.
+                        </small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        {{ form.ai_model.label(class="form-label") }}
+                        {{ form.ai_model(class="form-select") }}
+                        <small class="text-muted d-block mt-1">
+                            Select which AI model to use for assistance tasks.
+                        </small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-lock"></i> File Access Permissions</h6>
+                        <p class="text-muted small">Control what actions the AI can perform on your files:</p>
+                        
+                        <div class="form-check">
+                            {{ form.ai_can_access_files(class="form-check-input") }}
+                            {{ form.ai_can_access_files.label(class="form-check-label") }}
+                            <small class="text-muted d-block ms-4 mt-1">
+                                Allow AI to read and access file contents for analysis and assistance.
+                            </small>
+                        </div>
+                        
+                        <div class="form-check mt-3">
+                            {{ form.ai_can_edit_files(class="form-check-input") }}
+                            {{ form.ai_can_edit_files.label(class="form-check-label") }}
+                            <small class="text-muted d-block ms-4 mt-1">
+                                Allow AI to make modifications and edits to your files.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                            Back to Profile
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> About Claude Haiku 4.5</h5>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Claude Haiku 4.5 is an advanced AI model that can assist with:
+                </p>
+                <ul class="small">
+                    <li>Code analysis and generation</li>
+                    <li>File content review and suggestions</li>
+                    <li>File editing and modifications</li>
+                    <li>Documentation and content creation</li>
+                    <li>Problem-solving and debugging</li>
+                </ul>
+                <div class="alert alert-info small mt-3" role="alert">
+                    <strong>Note:</strong> When enabled by default, all users get access to Claude Haiku 4.5 
+                    with full permissions for accessing and editing files.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Current Status</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">AI Enabled:</dt>
+                    <dd class="col-sm-6">
+                        {% if current_user.ai_enabled %}
+                            <span class="badge bg-success">Yes</span>
+                        {% else %}
+                            <span class="badge bg-danger">No</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-6">Model:</dt>
+                    <dd class="col-sm-6">
+                        <span class="badge bg-info">{{ current_user.ai_model }}</span>
+                    </dd>
+                    
+                    <dt class="col-sm-6">File Access:</dt>
+                    <dd class="col-sm-6">
+                        {% if current_user.ai_can_access_files %}
+                            <span class="badge bg-success">Allowed</span>
+                        {% else %}
+                            <span class="badge bg-warning">Restricted</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-6">File Edit:</dt>
+                    <dd class="col-sm-6">
+                        {% if current_user.ai_can_edit_files %}
+                            <span class="badge bg-success">Allowed</span>
+                        {% else %}
+                            <span class="badge bg-warning">Restricted</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

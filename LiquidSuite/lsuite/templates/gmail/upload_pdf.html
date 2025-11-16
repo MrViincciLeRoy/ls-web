@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload PDF Statement - LSuite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .card-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .card-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .card-body {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .required {
+            color: #ef4444;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            border: 3px dashed #667eea;
+            border-radius: 8px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .file-input-label:hover {
+            background: #eef2ff;
+            border-color: #764ba2;
+        }
+        
+        .file-input-label.has-file {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .file-info.selected {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        input[type="text"],
+        input[type="password"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="date"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+        
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .info-box {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .info-box li {
+            padding: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info-box li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .back-link {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .back-link:hover {
+            opacity: 1;
+        }
+        
+        small {
+            color: #666;
+            font-size: 12px;
+            display: block;
+            margin-top: 5px;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <a href="/gmail/statements" class="back-link">← Back to Statements</a>
+                <h1>📄 Upload PDF Statement</h1>
+                <p>Import bank statement directly from PDF file</p>
+            </div>
+            
+            <div class="card-body">
+                <div class="info-box">
+                    <h3>📝 Supported Banks</h3>
+                    <ul>
+                        <li>Capitec Bank statements</li>
+                        <li>FNB statements (coming soon)</li>
+                        <li>Standard Bank statements (coming soon)</li>
+                        <li>ABSA statements (coming soon)</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <span>🔒</span>
+                    <div>
+                        <strong>Password Protected PDFs:</strong> If your PDF requires a password, you'll be prompted to enter it after upload. You can also provide it now.
+                    </div>
+                </div>
+                
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <!-- PDF File -->
+                    <div class="form-group">
+                        <label for="pdf_file">
+                            Bank Statement PDF <span class="required">*</span>
+                        </label>
+                        <div class="file-input-wrapper">
+                            <input type="file" 
+                                   id="pdf_file" 
+                                   name="pdf_file" 
+                                   class="file-input" 
+                                   accept=".pdf,application/pdf"
+                                   required>
+                            <label for="pdf_file" class="file-input-label" id="fileLabel">
+                                <div>
+                                    <div class="upload-icon">📄</div>
+                                    <div>
+                                        <strong>Click to select PDF file</strong>
+                                        <div class="file-info" id="fileInfo">or drag and drop here</div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank Selection -->
+                    <div class="form-group">
+                        <label for="bank_name">
+                            Bank <span class="required">*</span>
+                        </label>
+                        <select id="bank_name" name="bank_name" required>
+                            <option value="">Select your bank</option>
+                            <option value="capitec">Capitec Bank</option>
+                            <option value="fnb">FNB (First National Bank)</option>
+                            <option value="standard">Standard Bank</option>
+                            <option value="absa">ABSA</option>
+                            <option value="nedbank">Nedbank</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Statement Date -->
+                    <div class="form-group">
+                        <label for="statement_date">
+                            Statement Date <span class="required">*</span>
+                        </label>
+                        <input type="date" 
+                               id="statement_date" 
+                               name="statement_date" 
+                               required>
+                        <small>The date shown on your statement (usually month-end)</small>
+                    </div>
+                    
+                    <!-- PDF Password (Optional) -->
+                    <div class="form-group">
+                        <label for="pdf_password">
+                            PDF Password (if protected)
+                        </label>
+                        <input type="password" 
+                               id="pdf_password" 
+                               name="pdf_password" 
+                               placeholder="Leave blank if not password protected">
+                        <small>Common passwords: last 4 digits of ID, account number, or date of birth</small>
+                    </div>
+                    
+                    <!-- Save Password Option -->
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" 
+                                   id="save_password" 
+                                   name="save_password"
+                                   value="yes">
+                            <label for="save_password" style="margin: 0; font-weight: normal;">
+                                Remember this password for future statements from this bank
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-parse Option -->
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" 
+                                   id="auto_parse" 
+                                   name="auto_parse"
+                                   value="yes"
+                                   checked>
+                            <label for="auto_parse" style="margin: 0; font-weight: normal;">
+                                Automatically extract transactions after upload
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        📤 Upload and Parse Statement
+                    </button>
+                </form>
+                
+                <div class="button-group">
+                    <a href="/gmail/upload-csv" class="btn btn-secondary" style="text-align: center;">
+                        📊 Upload CSV Instead
+                    </a>
+                    <a href="/gmail/statements" class="btn btn-secondary" style="text-align: center;">
+                        ✉️ Import from Gmail
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+            <span>💡</span>
+            <div>
+                <strong>Tip:</strong> You can upload multiple PDF statements one at a time. Duplicate transactions will be automatically detected and skipped.
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const fileInput = document.getElementById('pdf_file');
+        const fileLabel = document.getElementById('fileLabel');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        // Set today's date as default
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('statement_date').value = today;
+        
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                const fileSize = (e.target.files[0].size / 1024).toFixed(2);
+                fileLabel.classList.add('has-file');
+                fileInfo.innerHTML = `<strong>${fileName}</strong><br>${fileSize} KB`;
+                fileInfo.classList.add('selected');
+            } else {
+                fileLabel.classList.remove('has-file');
+                fileInfo.textContent = 'or drag and drop here';
+                fileInfo.classList.remove('selected');
+            }
+        });
+        
+        // Drag and drop support
+        fileLabel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileLabel.style.borderColor = '#764ba2';
+            fileLabel.style.background = '#eef2ff';
+        });
+        
+        fileLabel.addEventListener('dragleave', () => {
+            fileLabel.style.borderColor = '#667eea';
+            fileLabel.style.background = '#f8f9ff';
+        });
+        
+        fileLabel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileLabel.style.borderColor = '#667eea';
+            fileLabel.style.background = '#f8f9ff';
+            
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type === 'application/pdf') {
+                    fileInput.files = e.dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                } else {
+                    alert('Please drop a PDF file');
+                }
+            }
+        });
+        
+        // Form submission
+        uploadForm.addEventListener('submit', function(e) {
+            submitBtn.textContent = '⏳ Uploading and parsing...';
+            submitBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

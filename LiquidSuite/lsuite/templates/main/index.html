@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+            <p class="text-muted">Your financial overview for the last {{ days }} days</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('insights.dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-line"></i> Full Insights
+            </a>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Expenses</h6>
+                    <h3 class="text-danger mb-0">R{{ "%.2f"|format(total_expenses) }}</h3>
+                    <small class="text-muted">Last {{ days }} days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Total Income</h6>
+                    <h3 class="text-success mb-0">R{{ "%.2f"|format(total_income) }}</h3>
+                    <small class="text-muted">Last {{ days }} days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Net Cashflow</h6>
+                    <h3 class="text-{{ 'success' if total_income > total_expenses else 'danger' }} mb-0">
+                        R{{ "%.2f"|format(total_income - total_expenses) }}
+                    </h3>
+                    <small class="text-muted">
+                        {% if total_income > total_expenses %}
+                            <i class="fas fa-arrow-up"></i> Positive
+                        {% else %}
+                            <i class="fas fa-arrow-down"></i> Negative
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Transactions</h6>
+                    <h3 class="text-primary mb-0">{{ total_transactions_count }}</h3>
+                    <small class="text-muted">Last {{ days }} days</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Statements</h6>
+                            <h3 class="mb-0">{{ stats.statements }}</h3>
+                        </div>
+                        <i class="fas fa-file-invoice fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Categorized</h6>
+                            <h3 class="mb-0">{{ stats.categorized }}</h3>
+                        </div>
+                        <i class="fas fa-tags fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Uncategorized</h6>
+                            <h3 class="mb-0">{{ uncategorized_count }}</h3>
+                        </div>
+                        <i class="fas fa-question-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-1">Synced</h6>
+                            <h3 class="mb-0">{{ synced_count }}</h3>
+                        </div>
+                        <i class="fas fa-sync fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Monthly Trends Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Monthly Trends (Last 6 Months)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Categories -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-tags"></i> Top Categories</h5>
+                    <a href="{{ url_for('insights.categories') }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                    {% if categories %}
+                        {% for cat in categories %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <strong class="small">{{ cat.name }}</strong>
+                                <span class="badge bg-secondary">{{ cat.count }}</span>
+                            </div>
+                            <div class="progress" style="height: 20px;">
+                                {% if cat.expenses > 0 %}
+                                <div class="progress-bar bg-danger" 
+                                     style="width: {{ (cat.expenses / (cat.expenses + cat.income)) * 100 if (cat.expenses + cat.income) > 0 else 0 }}%"
+                                     title="Expenses: R{{ '%.2f'|format(cat.expenses) }}">
+                                </div>
+                                {% endif %}
+                                {% if cat.income > 0 %}
+                                <div class="progress-bar bg-success" 
+                                     style="width: {{ (cat.income / (cat.expenses + cat.income)) * 100 if (cat.expenses + cat.income) > 0 else 0 }}%"
+                                     title="Income: R{{ '%.2f'|format(cat.income) }}">
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-danger">-R{{ "%.2f"|format(cat.expenses) }}</small>
+                                <small class="text-success">+R{{ "%.2f"|format(cat.income) }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-tags fa-2x mb-2"></i>
+                            <p class="mb-0">No categories yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Suppliers -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-building"></i> Top Suppliers</h5>
+                    <a href="{{ url_for('insights.suppliers') }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if top_suppliers %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th class="text-center">Transactions</th>
+                                    <th class="text-end">Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for supplier in top_suppliers %}
+                                <tr>
+                                    <td>
+                                        <div style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ supplier.name }}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ supplier.count }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-danger">R{{ "%.2f"|format(supplier.total) }}</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-building fa-2x mb-2"></i>
+                        <p class="mb-0">No supplier data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Statements -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-alt"></i> Recent Statements</h5>
+                    <a href="{{ url_for('gmail.statements') }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_statements %}
+                    <div class="list-group list-group-flush">
+                        {% for statement in recent_statements %}
+                        <a href="{{ url_for('gmail.statement_detail', id=statement.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ statement.subject }}
+                                    </div>
+                                </h6>
+                                <small>
+                                    {{ statement.received_date.strftime('%Y-%m-%d') if statement.received_date else 'N/A' }}
+                                </small>
+                            </div>
+                            <p class="mb-1 small text-muted">{{ statement.sender }}</p>
+                            <div>
+                                <span class="badge bg-info">{{ statement.bank_name or 'Unknown' }}</span>
+                                {% if statement.state == 'parsed' %}
+                                    <span class="badge bg-success">Parsed</span>
+                                {% elif statement.state == 'error' %}
+                                    <span class="badge bg-danger">Error</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ statement.state }}</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p class="mb-0">No statements yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Transactions -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> Recent Transactions</h5>
+                    <a href="{{ url_for('gmail.transactions') }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trans in recent_transactions %}
+                                <tr style="cursor: pointer;" 
+                                    onclick="window.location='{{ url_for('gmail.transaction_detail', id=trans.id) }}'">
+                                    <td>{{ trans.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ trans.description }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if trans.category %}
+                                            <span class="badge bg-info">{{ trans.category.name }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Uncategorized</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if trans.withdrawal %}
+                                            <span class="text-danger">-R{{ "%.2f"|format(trans.withdrawal) }}</span>
+                                        {% elif trans.deposit %}
+                                            <span class="text-success">+R{{ "%.2f"|format(trans.deposit) }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if trans.erpnext_synced %}
+                                            <i class="fas fa-check-circle text-success" title="Synced"></i>
+                                        {% else %}
+                                            <i class="fas fa-clock text-warning" title="Pending"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="fas fa-exchange-alt fa-2x mb-2"></i>
+                        <p class="mb-0">No transactions yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('gmail.statements') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-file-invoice"></i> View Statements
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('gmail.transactions', uncategorized=1) }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-tags"></i> Categorize ({{ uncategorized_count }})
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('bridge.bulk_operations') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-sync"></i> Sync to ERPNext ({{ pending_sync }})
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('gmail.upload_csv') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-upload"></i> Upload CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Monthly trends chart
+    var ctx = document.getElementById('monthlyTrendsChart').getContext('2d');
+    var monthlyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [{% for m in monthly_trends %}'{{ m.month }} {{ m.year }}',{% endfor %}],
+            datasets: [
+                {
+                    label: 'Expenses',
+                    data: [{% for m in monthly_trends %}{{ m.expenses }},{% endfor %}],
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Income',
+                    data: [{% for m in monthly_trends %}{{ m.income }},{% endfor %}],
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': R' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

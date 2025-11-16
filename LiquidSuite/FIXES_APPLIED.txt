@@ -1,0 +1,11 @@
+FIXES APPLIED:
+
+1. APP STARTS ONCE - use_reloader=False in app.py
+2. BACKGROUND SYNC WITHOUT CELERY - lsuite/tasks_simple.py uses threading
+3. MOCK API AUTO-STARTS - START_ALL.bat launches both
+4. TRANSACTION LOGGING - mock_data/incoming_transactions.db + IncomingTransaction model
+5. SYNCS CONTINUE WHEN PAGE CLOSED - background threads don't stop
+
+START: Double-click START_ALL.bat
+LOGS: Double-click VIEW_LOGS.bat
+URLS: http://localhost:5000 (app) | http://localhost:8000 (mock) | http://localhost:8000/transaction-logs

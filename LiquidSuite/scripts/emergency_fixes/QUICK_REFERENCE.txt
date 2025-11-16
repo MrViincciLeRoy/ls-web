@@ -1,0 +1,75 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    LIQUIDSUITE - QUICK FIX CARD                           ║
+║              Bank Account ID NULL Constraint Error                        ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+📋 PROBLEM:
+   Statement ID 15 won't parse - 298 transactions blocked
+   Error: "null value in column bank_account_id violates not-null constraint"
+
+⚡ QUICK FIX (Choose One):
+
+   METHOD 1: Double-Click (EASIEST)
+   ─────────────────────────────
+   1. Open folder: scripts\emergency_fixes
+   2. Double-click: RUN_FIX.bat
+   3. Wait 30 seconds
+   ✅ Done!
+
+   METHOD 2: Command Line
+   ──────────────────────
+   cd "C:\Users\tv work\Documents\LiquidSuite-main\LiquidSuite-main\LiquidSuite"
+   python scripts/emergency_fixes/fix_bank_account_constraint.py
+
+🧪 TEST THE FIX:
+
+   1. Open LiquidSuite in browser
+   2. Go to: Gmail → Statements
+   3. Find: Statement ID 15 (Capitec)
+   4. Click: Parse/Reprocess
+   ✅ Should work now!
+
+📊 WHAT IT DOES:
+
+   ✓ Drops database constraint
+   ✓ Finds 298 broken transactions
+   ✓ Creates Capitec bank account
+   ✓ Links all transactions to account
+   ✓ Verifies everything fixed
+   ✓ Optionally restores constraint
+
+⏱️  TIME: ~30 seconds
+🔒 SAFE: Can run multiple times
+📁 LOCATION: scripts/emergency_fixes/
+
+🔧 FILES CHANGED:
+
+   ✅ lsuite/gmail/services.py - Code fixed
+   ✅ 3 new scripts in emergency_fixes/ folder
+
+🆘 TROUBLESHOOTING:
+
+   "python not found"     → Use python3 or RUN_FIX.bat
+   "permission denied"    → Run as Administrator
+   "connection error"     → Check PostgreSQL is running
+   "0 transactions fixed" → Already fixed, just retry parsing
+
+✅ SUCCESS CHECKLIST:
+
+   □ Fix script ran without errors
+   □ Reported "Successfully fixed X transactions"
+   □ Statement 15 now shows "Parsed" status
+   □ Can view all 298 transactions
+   □ No more NULL errors
+
+📞 STILL STUCK?
+
+   1. Check: lsuite.log file
+   2. Screenshot: Error message
+   3. Note: Python version (python --version)
+   4. Contact: Support with above info
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  💡 TIP: Keep this card handy for quick reference!                       ║
+║  📝 Full docs: scripts/emergency_fixes/README.md                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝

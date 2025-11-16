@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Recurring Transactions{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-redo"></i> Recurring Transactions</h2>
+            <p class="text-muted">Identify patterns and set up automatic categorization</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('insights.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% for rec in recurring %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <div class="row">
+                <div class="col">
+                    <h5 class="mb-0">{{ rec.description }}</h5>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-primary">{{ rec.count }} occurrences</span>
+                    <span class="badge bg-warning">{{ rec.frequency }}</span>
+                    <span class="badge bg-info">Every ~{{ rec.avg_interval_days }} days</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Average Amount:</strong><br>
+                    <h4 class="mb-0">R{{ "%.2f"|format(rec.avg_amount) }}</h4>
+                </div>
+                <div class="col-md-3">
+                    <strong>Total Spent:</strong><br>
+                    <h4 class="mb-0 text-danger">R{{ "%.2f"|format(rec.total) }}</h4>
+                </div>
+                <div class="col-md-3">
+                    <strong>Last Transaction:</strong><br>
+                    <span class="text-muted">{{ rec.last_date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Category:</strong><br>
+                    <span class="badge bg-info">{{ rec.category }}</span>
+                </div>
+            </div>
+
+            <h6>Recent Transactions:</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                            <th>Days Since Last</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trans in rec.transactions %}
+                        <tr>
+                            <td>{{ trans.date }}</td>
+                            <td><strong>R{{ "%.2f"|format(trans.amount) }}</strong></td>
+                            <td><small>{{ trans.reference }}</small></td>
+                            <td>
+                                {% if loop.index > 1 %}
+                                    {{ (rec.transactions[loop.index0 - 1].date - trans.date).days }} days
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-lightbulb"></i>
+                <strong>Tip:</strong> This appears to be a {{ rec.frequency|lower }} expense. 
+                Consider setting up automatic categorization or scheduling reminders for payment.
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

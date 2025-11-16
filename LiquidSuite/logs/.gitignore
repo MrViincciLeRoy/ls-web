@@ -1,0 +1,3 @@
+# Python logging - ignore debug logs
+*.log
+lsuite_debug.log

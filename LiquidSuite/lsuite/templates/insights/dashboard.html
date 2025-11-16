@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Insights Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-chart-line"></i> Insights Dashboard</h2>
+            <p class="text-muted">Analytics for smarter accounting decisions</p>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" onchange="window.location.href='?days='+this.value">
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Transactions</h6>
+                    <h2 class="text-primary">{{ total_transactions }}</h2>
+                    <small>Avg: R{{ "%.2f"|format(avg_transaction) }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Expenses</h6>
+                    <h2 class="text-danger">R{{ "%.2f"|format(total_expenses) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Income</h6>
+                    <h2 class="text-success">R{{ "%.2f"|format(total_income) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Net Cashflow</h6>
+                    <h2 class="text-{{ 'success' if total_income > total_expenses else 'danger' }}">
+                        R{{ "%.2f"|format(total_income - total_expenses) }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ERPNext Sync Status -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Synced to ERPNext</h6>
+                    <h3 class="text-success">{{ synced_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Pending Sync</h6>
+                    <h3 class="text-warning">{{ pending_sync }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Uncategorized</h6>
+                    <h3 class="text-warning">{{ uncategorized_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Sync Success Rate</h6>
+                    <h3 class="text-info">
+                        {% if sync_success + sync_failed > 0 %}
+                            {{ "%.0f"|format((sync_success / (sync_success + sync_failed)) * 100) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Monthly Trends Chart -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Monthly Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5><i class="fas fa-tags"></i> Categories</h5>
+                    <a href="{{ url_for('insights.categories') }}" class="btn btn-sm btn-outline-primary">Details</a>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for cat in categories[:10] %}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ cat.name }}</strong>
+                            <span class="text-muted">{{ cat.count }}</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-danger" 
+                                 style="width: {{ (cat.expenses / (total_expenses or 1)) * 100 }}%"
+                                 title="Expenses: R{{ '%.2f'|format(cat.expenses) }}">
+                            </div>
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ (cat.income / (total_income or 1)) * 100 }}%"
+                                 title="Income: R{{ '%.2f'|format(cat.income) }}">
+                            </div>
+                        </div>
+                        <small class="text-danger">R{{ "%.2f"|format(cat.expenses) }}</small> / 
+                        <small class="text-success">R{{ "%.2f"|format(cat.income) }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Suppliers -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5><i class="fas fa-building"></i> Top Suppliers</h5>
+                    <a href="{{ url_for('insights.suppliers') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th class="text-center">Count</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for supplier in top_suppliers[:10] %}
+                                <tr>
+                                    <td>{{ supplier.name[:40] }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ supplier.count }}</span>
+                                    </td>
+                                    <td class="text-end text-danger">
+                                        <strong>R{{ "%.2f"|format(supplier.total) }}</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recurring Transactions -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5><i class="fas fa-redo"></i> Recurring Transactions</h5>
+                    <a href="{{ url_for('insights.recurring') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-center">Frequency</th>
+                                    <th class="text-end">Avg Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trans in recurring_transactions[:10] %}
+                                <tr>
+                                    <td>{{ trans.description[:40] }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ trans.count }}x</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>R{{ "%.2f"|format(trans.avg_amount) }}</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Monthly trends chart
+    var ctx = document.getElementById('monthlyChart').getContext('2d');
+    var monthlyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [{% for m in monthly_trends %}'{{ m.month }} {{ m.year }}',{% endfor %}],
+            datasets: [
+                {
+                    label: 'Expenses',
+                    data: [{% for m in monthly_trends %}{{ m.expenses }},{% endfor %}],
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Income',
+                    data: [{% for m in monthly_trends %}{{ m.income }},{% endfor %}],
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': R' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

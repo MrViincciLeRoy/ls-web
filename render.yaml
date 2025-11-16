@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: lsuite-web
+    env: docker
+    dockerfilePath: ./LiquidSuite/Deployment/Dockerfile
+    dockerContext: ./LiquidSuite
+    plan: free
+    region: oregon
+    
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      
+      - key: FLASK_APP
+        value: app.py
+      
+      - key: DATABASE_URL
+        sync: false
+      
+      - key: SECRET_KEY
+        generateValue: true
+      
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      
+      - key: GOOGLE_REDIRECT_URI
+        value: https://lsuite-web.onrender.com/gmail/oauth/callback
+    
+    healthCheckPath: /health  # ✅ Changed from / to /health
+    autoDeploy: true
