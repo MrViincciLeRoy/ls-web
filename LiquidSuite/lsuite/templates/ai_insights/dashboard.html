@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}AI Insights{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-brain"></i> AI-Powered Insights</h2>
+            <p class="text-muted">Intelligent analysis of your financial data using Groq AI</p>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" id="periodSelect" onchange="updatePeriod(this.value)">
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Transactions</h6>
+                    <h2 class="text-primary">{{ stats.total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Expenses</h6>
+                    <h2 class="text-danger">R{{ "%.2f"|format(stats.total_expenses) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Total Income</h6>
+                    <h2 class="text-success">R{{ "%.2f"|format(stats.total_income) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Uncategorized</h6>
+                    <h2 class="text-warning">{{ stats.uncategorized }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot"></i> AI Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="aiAnalysisLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Analyzing your financial data with AI...</p>
+                    </div>
+                    
+                    <div id="aiAnalysisResult" style="display: none;">
+                        <!-- Overview -->
+                        <div class="mb-4">
+                            <h6><i class="fas fa-eye"></i> Overview</h6>
+                            <p id="aiOverview" class="lead"></p>
+                        </div>
+
+                        <!-- Risk Score -->
+                        <div class="mb-4">
+                            <h6><i class="fas fa-exclamation-triangle"></i> Risk Assessment</h6>
+                            <div class="d-flex align-items-center gap-3">
+                                <div id="riskBadge"></div>
+                                <div id="savingsPotential"></div>
+                            </div>
+                        </div>
+
+                        <!-- Key Insights -->
+                        <div class="mb-4">
+                            <h6><i class="fas fa-lightbulb"></i> Key Insights</h6>
+                            <ul id="aiInsights" class="list-group"></ul>
+                        </div>
+
+                        <!-- Spending Patterns -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card border-info">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0">Observations</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul id="aiObservations" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h6 class="mb-0">Concerns</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul id="aiConcerns" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0">Opportunities</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <ul id="aiOpportunities" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div class="mb-4">
+                            <h6><i class="fas fa-tasks"></i> Recommendations</h6>
+                            <div id="aiRecommendations" class="list-group"></div>
+                        </div>
+                    </div>
+
+                    <div id="aiAnalysisError" style="display: none;" class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-circle"></i> Analysis Failed</h6>
+                        <p id="errorMessage" class="mb-0"></p>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <button id="analyzeBtn" class="btn btn-primary btn-lg" onclick="runAnalysis()">
+                            <i class="fas fa-brain"></i> Run AI Analysis
+                        </button>
+                        <button id="reanalyzeBtn" class="btn btn-outline-primary" onclick="runAnalysis()" style="display: none;">
+                            <i class="fas fa-redo"></i> Re-analyze
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> AI-Powered Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <a href="{{ url_for('gmail.transactions') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-exchange-alt"></i> Analyze All Transactions
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <a href="{{ url_for('insights.suppliers') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-building"></i> Supplier Intelligence
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <a href="{{ url_for('insights.categories') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-tags"></i> Category Analysis
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPeriod = {{ days }};
+
+function updatePeriod(days) {
+    window.location.href = '?days=' + days;
+}
+
+function runAnalysis() {
+    const loadingDiv = document.getElementById('aiAnalysisLoading');
+    const resultDiv = document.getElementById('aiAnalysisResult');
+    const errorDiv = document.getElementById('aiAnalysisError');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const reanalyzeBtn = document.getElementById('reanalyzeBtn');
+    
+    loadingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    analyzeBtn.style.display = 'none';
+    
+    const formData = new FormData();
+    formData.append('days', currentPeriod);
+    
+    fetch('{{ url_for("ai_insights.analyze_period") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            displayAnalysis(data.analysis);
+            resultDiv.style.display = 'block';
+            reanalyzeBtn.style.display = 'inline-block';
+        } else {
+            errorDiv.style.display = 'block';
+            document.getElementById('errorMessage').textContent = data.message;
+            analyzeBtn.style.display = 'inline-block';
+        }
+    })
+    .catch(error => {
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        document.getElementById('errorMessage').textContent = 'Network error: ' + error.message;
+        analyzeBtn.style.display = 'inline-block';
+    });
+}
+
+function displayAnalysis(analysis) {
+    document.getElementById('aiOverview').textContent = analysis.overview || 'No overview available';
+    
+    const riskColors = {
+        'LOW': 'success',
+        'MEDIUM': 'warning',
+        'HIGH': 'danger'
+    };
+    const riskColor = riskColors[analysis.risk_score] || 'secondary';
+    document.getElementById('riskBadge').innerHTML = 
+        `<span class="badge bg-${riskColor} fs-5">Risk: ${analysis.risk_score}</span>`;
+    
+    document.getElementById('savingsPotential').innerHTML = 
+        `<span class="badge bg-info fs-5">Savings Potential: ${analysis.savings_potential}</span>`;
+    
+    const insightsList = document.getElementById('aiInsights');
+    insightsList.innerHTML = '';
+    (analysis.key_insights || []).forEach(insight => {
+        insightsList.innerHTML += `<li class="list-group-item"><i class="fas fa-check-circle text-primary"></i> ${insight}</li>`;
+    });
+    
+    const observationsList = document.getElementById('aiObservations');
+    observationsList.innerHTML = '';
+    (analysis.spending_patterns?.observations || []).forEach(obs => {
+        observationsList.innerHTML += `<li class="mb-2"><i class="fas fa-circle text-info" style="font-size: 8px;"></i> ${obs}</li>`;
+    });
+    
+    const concernsList = document.getElementById('aiConcerns');
+    concernsList.innerHTML = '';
+    (analysis.spending_patterns?.concerns || []).forEach(concern => {
+        concernsList.innerHTML += `<li class="mb-2"><i class="fas fa-exclamation-triangle text-warning"></i> ${concern}</li>`;
+    });
+    
+    const opportunitiesList = document.getElementById('aiOpportunities');
+    opportunitiesList.innerHTML = '';
+    (analysis.spending_patterns?.opportunities || []).forEach(opp => {
+        opportunitiesList.innerHTML += `<li class="mb-2"><i class="fas fa-arrow-up text-success"></i> ${opp}</li>`;
+    });
+    
+    const recommendationsDiv = document.getElementById('aiRecommendations');
+    recommendationsDiv.innerHTML = '';
+    (analysis.recommendations || []).forEach((rec, idx) => {
+        recommendationsDiv.innerHTML += `
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1"><i class="fas fa-star text-warning"></i> Recommendation ${idx + 1}</h6>
+                </div>
+                <p class="mb-0">${rec}</p>
+            </div>`;
+    });
+}
+
+{% if transaction_count > 0 %}
+document.addEventListener('DOMContentLoaded', function() {
+    runAnalysis();
+});
+{% endif %}
+</script>
+{% endblock %}
