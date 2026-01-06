@@ -26,6 +26,8 @@ lxml==4.9.3
 
 # HTTP Requests
 requests==2.31.0
+groq
+
 
 # Forms & Validation
 WTForms==3.1.1
