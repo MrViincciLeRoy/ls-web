@@ -1,6 +1,5 @@
 """
-AI Insights Routes - Full implementation matching Insights module
-Location: lsuite/ai_insights/routes.py
+AI Insights Routes - Fixed import path
 """
 from flask import render_template, request, jsonify
 from flask_login import login_required, current_user
@@ -10,7 +9,7 @@ from collections import defaultdict
 from lsuite.ai_insights import ai_insights_bp
 from lsuite.extensions import db
 from lsuite.models import BankTransaction, TransactionCategory, ERPNextSyncLog
-from lsuite.services.ai_service import get_ai_service
+from lsuite.ai_insights.ai_service import get_ai_service  # FIXED: Correct import path
 import calendar
 import logging
 
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 @ai_insights_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """AI-powered insights dashboard (matches insights/dashboard)"""
+    """AI-powered insights dashboard"""
     
     days = request.args.get('days', 90, type=int)
     start_date = datetime.now() - timedelta(days=days)
