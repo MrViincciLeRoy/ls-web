@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}AI Category Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-tags"></i> AI Category Analysis</h2>
+            <p class="text-muted">Smart insights into spending by category</p>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" onchange="window.location.href='?days='+this.value">
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('ai_insights.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Uncategorized Warning -->
+    {% if uncategorized_count > 0 %}
+    <div class="alert alert-warning">
+        <div class="row">
+            <div class="col">
+                <h5><i class="fas fa-exclamation-triangle"></i> Uncategorized Transactions</h5>
+                <p class="mb-0">
+                    You have <strong>{{ uncategorized_count }}</strong> uncategorized transactions 
+                    totaling <strong>R{{ "%.2f"|format(uncategorized_total) }}</strong>
+                </p>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('gmail.transactions', filter='uncategorized') }}" class="btn btn-warning">
+                    Categorize Now
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Category Cards -->
+    <div class="row">
+        {% for cat in categories %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <div class="row">
+                        <div class="col">
+                            <h5 class="mb-0">{{ cat.name }}</h5>
+                            <small>{{ cat.type|capitalize }}</small>
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge bg-light text-dark">{{ cat.count }} transactions</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6 text-center">
+                            <small class="text-muted">Total Amount</small>
+                            <h3 class="text-{{ 'danger' if cat.type == 'expense' else 'success' }}">
+                                R{{ "%.2f"|format(cat.total) }}
+                            </h3>
+                        </div>
+                        <div class="col-6 text-center">
+                            <small class="text-muted">Average</small>
+                            <h3 class="text-primary">
+                                R{{ "%.2f"|format(cat.total / cat.count if cat.count > 0 else 0) }}
+                            </h3>
+                        </div>
+                    </div>
+
+                    {% if cat.expenses > 0 %}
+                    <div class="mb-2">
+                        <small class="text-muted">Expenses</small>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-danger" 
+                                 style="width: 100%"
+                                 title="R{{ '%.2f'|format(cat.expenses) }}">
+                                R{{ "%.2f"|format(cat.expenses) }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if cat.income > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted">Income</small>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: 100%"
+                                 title="R{{ '%.2f'|format(cat.income) }}">
+                                R{{ "%.2f"|format(cat.income) }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- AI Analysis Section -->
+                    <div id="ai-analysis-{{ cat.id }}" class="mb-3" style="display: none;">
+                        <div class="alert alert-primary border-primary">
+                            <h6><i class="fas fa-robot"></i> AI Category Insights</h6>
+                            <div id="ai-loading-{{ cat.id }}" class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
+                                <small class="ms-2">Analyzing category...</small>
+                            </div>
+                            <div id="ai-result-{{ cat.id }}" style="display: none;">
+                                <small class="text-muted"><strong>Patterns:</strong></small>
+                                <ul id="ai-patterns-{{ cat.id }}" class="small mb-2"></ul>
+                                
+                                <small class="text-muted"><strong>Concerns:</strong></small>
+                                <ul id="ai-concerns-{{ cat.id }}" class="small mb-2"></ul>
+                                
+                                <small class="text-muted"><strong>Opportunities:</strong></small>
+                                <ul id="ai-opportunities-{{ cat.id }}" class="small mb-2"></ul>
+                                
+                                <small class="text-muted"><strong>Budget Recommendation:</strong></small>
+                                <p id="ai-budget-{{ cat.id }}" class="mb-0 small"></p>
+                            </div>
+                            <div id="ai-error-{{ cat.id }}" class="alert alert-danger mb-0" style="display: none;"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-sm btn-primary" onclick="analyzeCategory({{ cat.id }})">
+                            <i class="fas fa-brain"></i> Get AI Analysis
+                        </button>
+                        <a href="{{ url_for('gmail.transactions', category_id=cat.id) }}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-list"></i> View Transactions
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function analyzeCategory(categoryId) {
+    const analysisDiv = document.getElementById('ai-analysis-' + categoryId);
+    const loadingDiv = document.getElementById('ai-loading-' + categoryId);
+    const resultDiv = document.getElementById('ai-result-' + categoryId);
+    const errorDiv = document.getElementById('ai-error-' + categoryId);
+    
+    analysisDiv.style.display = 'block';
+    loadingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    
+    const formData = new FormData();
+    formData.append('days', {{ days }});
+    
+    fetch(`/ai-insights/categories/${categoryId}/analyze`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            const analysis = data.analysis;
+            
+            const patternsList = document.getElementById('ai-patterns-' + categoryId);
+            patternsList.innerHTML = '';
+            if (analysis.patterns && analysis.patterns.length > 0) {
+                analysis.patterns.forEach(pattern => {
+                    patternsList.innerHTML += `<li>${pattern}</li>`;
+                });
+            } else {
+                patternsList.innerHTML = '<li class="text-muted">No specific patterns detected</li>';
+            }
+            
+            const concernsList = document.getElementById('ai-concerns-' + categoryId);
+            concernsList.innerHTML = '';
+            if (analysis.concerns && analysis.concerns.length > 0) {
+                analysis.concerns.forEach(concern => {
+                    concernsList.innerHTML += `<li class="text-warning">${concern}</li>`;
+                });
+            } else {
+                concernsList.innerHTML = '<li class="text-success">No concerns identified</li>';
+            }
+            
+            const oppsList = document.getElementById('ai-opportunities-' + categoryId);
+            oppsList.innerHTML = '';
+            if (analysis.opportunities && analysis.opportunities.length > 0) {
+                analysis.opportunities.forEach(opp => {
+                    oppsList.innerHTML += `<li class="text-success">${opp}</li>`;
+                });
+            } else {
+                oppsList.innerHTML = '<li class="text-muted">No opportunities identified</li>';
+            }
+            
+            document.getElementById('ai-budget-' + categoryId).textContent = 
+                analysis.budget_recommendation || 'No specific budget recommendation';
+            
+            resultDiv.style.display = 'block';
+        } else {
+            errorDiv.textContent = data.message;
+            errorDiv.style.display = 'block';
+        }
+    })
+    .catch(err => {
+        loadingDiv.style.display = 'none';
+        errorDiv.textContent = 'Network error: ' + err.message;
+        errorDiv.style.display = 'block';
+    });
+}
+</script>
+{% endblock %}

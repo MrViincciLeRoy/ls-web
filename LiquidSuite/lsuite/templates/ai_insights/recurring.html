@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}AI Recurring Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-redo"></i> AI Recurring Transaction Analysis</h2>
+            <p class="text-muted">Identify patterns and optimize recurring expenses with AI</p>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" onchange="window.location.href='?days='+this.value">
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('ai_insights.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% for rec in recurring %}
+    <div class="card mb-4">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="row">
+                <div class="col">
+                    <h5 class="mb-0">{{ rec.description }}</h5>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-light text-dark">{{ rec.count }} occurrences</span>
+                    <span class="badge bg-warning text-dark">{{ rec.frequency }}</span>
+                    <span class="badge bg-info">Every ~{{ rec.avg_interval_days }} days</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Average Amount:</strong><br>
+                    <h4 class="mb-0">R{{ "%.2f"|format(rec.avg_amount) }}</h4>
+                </div>
+                <div class="col-md-3">
+                    <strong>Total Spent:</strong><br>
+                    <h4 class="mb-0 text-danger">R{{ "%.2f"|format(rec.total) }}</h4>
+                </div>
+                <div class="col-md-3">
+                    <strong>Last Transaction:</strong><br>
+                    <span class="text-muted">{{ rec.last_date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <strong>Category:</strong><br>
+                    <span class="badge bg-info">{{ rec.category }}</span>
+                </div>
+            </div>
+
+            <!-- AI Analysis Section -->
+            <div id="ai-analysis-{{ loop.index }}" class="mb-3" style="display: none;">
+                <div class="alert alert-primary border-primary">
+                    <h6><i class="fas fa-robot"></i> AI Pattern Analysis</h6>
+                    <div id="ai-loading-{{ loop.index }}" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <small class="ms-2">Analyzing recurring pattern...</small>
+                    </div>
+                    <div id="ai-result-{{ loop.index }}" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted"><strong>Pattern Analysis:</strong></small>
+                                <p id="ai-pattern-{{ loop.index }}" class="mb-2"></p>
+                                <small class="text-muted"><strong>Reliability:</strong></small>
+                                <p id="ai-reliability-{{ loop.index }}" class="mb-2"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted"><strong>Insights:</strong></small>
+                                <ul id="ai-insights-{{ loop.index }}" class="small mb-2"></ul>
+                                <small class="text-muted"><strong>Optimization Tips:</strong></small>
+                                <ul id="ai-optimization-{{ loop.index }}" class="small mb-0"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="ai-error-{{ loop.index }}" class="alert alert-danger mb-0" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <button class="btn btn-sm btn-primary" onclick="analyzeRecurring('{{ rec.description }}', {{ loop.index }})">
+                    <i class="fas fa-brain"></i> Get AI Analysis
+                </button>
+            </div>
+
+            <h6><i class="fas fa-history"></i> Recent Transactions</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                            <th>Days Since Last</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trans in rec.transactions %}
+                        <tr>
+                            <td>{{ trans.date }}</td>
+                            <td><strong>R{{ "%.2f"|format(trans.amount) }}</strong></td>
+                            <td><small>{{ trans.reference }}</small></td>
+                            <td>
+                                {% if loop.index > 1 %}
+                                    {{ (rec.transactions[loop.index0 - 1].date - trans.date).days }} days
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-lightbulb"></i>
+                <strong>Quick Insight:</strong> This appears to be a {{ rec.frequency|lower }} expense. 
+                Consider using AI analysis for personalized optimization recommendations.
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function analyzeRecurring(description, index) {
+    const analysisDiv = document.getElementById('ai-analysis-' + index);
+    const loadingDiv = document.getElementById('ai-loading-' + index);
+    const resultDiv = document.getElementById('ai-result-' + index);
+    const errorDiv = document.getElementById('ai-error-' + index);
+    
+    analysisDiv.style.display = 'block';
+    loadingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    
+    fetch(`/ai-insights/recurring/${encodeURIComponent(description)}/analyze`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            const analysis = data.analysis;
+            
+            document.getElementById('ai-pattern-' + index).textContent = analysis.pattern_analysis;
+            document.getElementById('ai-reliability-' + index).innerHTML = 
+                `<span class="badge bg-${getReliabilityColor(analysis.reliability)}">${analysis.reliability}</span>`;
+            
+            const insightsList = document.getElementById('ai-insights-' + index);
+            insightsList.innerHTML = '';
+            if (analysis.insights && analysis.insights.length > 0) {
+                analysis.insights.forEach(insight => {
+                    insightsList.innerHTML += `<li>${insight}</li>`;
+                });
+            } else {
+                insightsList.innerHTML = '<li class="text-muted">No additional insights</li>';
+            }
+            
+            const optList = document.getElementById('ai-optimization-' + index);
+            optList.innerHTML = '';
+            if (analysis.optimization && analysis.optimization.length > 0) {
+                analysis.optimization.forEach(opt => {
+                    optList.innerHTML += `<li class="text-success">${opt}</li>`;
+                });
+            } else {
+                optList.innerHTML = '<li class="text-muted">No optimization suggestions</li>';
+            }
+            
+            resultDiv.style.display = 'block';
+        } else {
+            errorDiv.textContent = data.message;
+            errorDiv.style.display = 'block';
+        }
+    })
+    .catch(err => {
+        loadingDiv.style.display = 'none';
+        errorDiv.textContent = 'Network error: ' + err.message;
+        errorDiv.style.display = 'block';
+    });
+}
+
+function getReliabilityColor(reliability) {
+    const reliabilityLower = reliability.toLowerCase();
+    if (reliabilityLower.includes('stable')) return 'success';
+    if (reliabilityLower.includes('variable')) return 'warning';
+    return 'secondary';
+}
+</script>
+{% endblock %}

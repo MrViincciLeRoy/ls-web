@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}AI Supplier Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-building"></i> AI Supplier Analysis</h2>
+            <p class="text-muted">Intelligent insights into your supplier relationships</p>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" onchange="window.location.href='?days='+this.value">
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 months</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('ai_insights.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% for supplier in suppliers %}
+    <div class="card mb-4">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="row">
+                <div class="col">
+                    <h5 class="mb-0">{{ supplier.name }}</h5>
+                </div>
+                <div class="col-auto">
+                    <span class="badge bg-light text-dark">{{ supplier.count }} transactions</span>
+                    <span class="badge bg-danger">R{{ "%.2f"|format(supplier.total) }}</span>
+                    <span class="badge bg-info">R{{ "%.2f"|format(supplier.avg) }} avg</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Last Transaction:</strong><br>
+                    <span class="text-muted">{{ supplier.last_date }}</span>
+                </div>
+                <div class="col-md-9">
+                    <strong>Categories:</strong><br>
+                    {% for cat in supplier.categories %}
+                        <span class="badge bg-secondary">{{ cat }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- AI Analysis Section -->
+            <div id="ai-analysis-{{ loop.index }}" class="mb-3" style="display: none;">
+                <div class="alert alert-primary border-primary">
+                    <h6><i class="fas fa-robot"></i> AI Analysis</h6>
+                    <div id="ai-loading-{{ loop.index }}" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <small class="ms-2">Analyzing supplier data...</small>
+                    </div>
+                    <div id="ai-result-{{ loop.index }}" style="display: none;">
+                        <p id="ai-assessment-{{ loop.index }}" class="mb-2"></p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted"><strong>Spending Trend:</strong></small>
+                                <p id="ai-trend-{{ loop.index }}" class="mb-2"></p>
+                                <small class="text-muted"><strong>Insights:</strong></small>
+                                <ul id="ai-insights-{{ loop.index }}" class="small mb-2"></ul>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted"><strong>Concerns:</strong></small>
+                                <ul id="ai-concerns-{{ loop.index }}" class="small mb-2"></ul>
+                                <small class="text-muted"><strong>Recommendations:</strong></small>
+                                <ul id="ai-recommendations-{{ loop.index }}" class="small mb-0"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="ai-error-{{ loop.index }}" class="alert alert-danger mb-0" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <button class="btn btn-sm btn-primary" onclick="analyzeSupplier('{{ supplier.name }}', {{ loop.index }})">
+                    <i class="fas fa-brain"></i> Get AI Analysis
+                </button>
+            </div>
+            
+            <h6><i class="fas fa-list"></i> Transaction History</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                            <th>Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trans in supplier.transactions[:20] %}
+                        <tr>
+                            <td>{{ trans.date }}</td>
+                            <td class="text-danger"><strong>R{{ "%.2f"|format(trans.amount) }}</strong></td>
+                            <td><small>{{ trans.reference }}</small></td>
+                            <td><span class="badge bg-info">{{ trans.category }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if supplier.transactions|length > 20 %}
+            <small class="text-muted">Showing latest 20 of {{ supplier.count }} transactions</small>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function analyzeSupplier(name, index) {
+    const analysisDiv = document.getElementById('ai-analysis-' + index);
+    const loadingDiv = document.getElementById('ai-loading-' + index);
+    const resultDiv = document.getElementById('ai-result-' + index);
+    const errorDiv = document.getElementById('ai-error-' + index);
+    
+    analysisDiv.style.display = 'block';
+    loadingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+    
+    const formData = new FormData();
+    formData.append('days', {{ days }});
+    
+    fetch(`/ai-insights/suppliers/${encodeURIComponent(name)}/analyze`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            const analysis = data.analysis;
+            
+            document.getElementById('ai-assessment-' + index).textContent = analysis.relationship_assessment;
+            document.getElementById('ai-trend-' + index).innerHTML = 
+                `<span class="badge bg-${getTrendColor(analysis.spending_trend)}">${analysis.spending_trend}</span>`;
+            
+            const insightsList = document.getElementById('ai-insights-' + index);
+            insightsList.innerHTML = '';
+            (analysis.insights || []).forEach(insight => {
+                insightsList.innerHTML += `<li>${insight}</li>`;
+            });
+            
+            const concernsList = document.getElementById('ai-concerns-' + index);
+            concernsList.innerHTML = '';
+            if (analysis.concerns && analysis.concerns.length > 0) {
+                analysis.concerns.forEach(concern => {
+                    concernsList.innerHTML += `<li class="text-warning">${concern}</li>`;
+                });
+            } else {
+                concernsList.innerHTML = '<li class="text-success">No concerns identified</li>';
+            }
+            
+            const recsList = document.getElementById('ai-recommendations-' + index);
+            recsList.innerHTML = '';
+            (analysis.recommendations || []).forEach(rec => {
+                recsList.innerHTML += `<li>${rec}</li>`;
+            });
+            
+            resultDiv.style.display = 'block';
+        } else {
+            errorDiv.textContent = data.message;
+            errorDiv.style.display = 'block';
+        }
+    })
+    .catch(err => {
+        loadingDiv.style.display = 'none';
+        errorDiv.textContent = 'Network error: ' + err.message;
+        errorDiv.style.display = 'block';
+    });
+}
+
+function getTrendColor(trend) {
+    const trendLower = trend.toLowerCase();
+    if (trendLower.includes('increas')) return 'danger';
+    if (trendLower.includes('decreas')) return 'success';
+    return 'secondary';
+}
+</script>
+{% endblock %}
