@@ -1,0 +1,70 @@
+name: Initialize Database on Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_admin:
+        description: 'Create admin user?'
+        required: true
+        type: boolean
+        default: true
+      admin_email:
+        description: 'Admin email'
+        required: false
+        default: 'admin@lsuite.local'
+      admin_username:
+        description: 'Admin username'
+        required: false
+        default: 'admin'
+      admin_password:
+        description: 'Admin password'
+        required: false
+        default: 'Admin123!'
+
+jobs:
+  init-database:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      working-directory: ./LiquidSuite
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Initialize Database
+      working-directory: ./LiquidSuite
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        FLASK_ENV: production
+      run: |
+        python init_prod_db.py \
+          --create-admin=${{ inputs.create_admin }} \
+          --admin-email="${{ inputs.admin_email }}" \
+          --admin-username="${{ inputs.admin_username }}" \
+          --admin-password="${{ inputs.admin_password }}"
+    
+    - name: Summary
+      run: |
+        echo "## Database Initialization Complete! ✅" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Database has been initialized with:" >> $GITHUB_STEP_SUMMARY
+        echo "- All tables created" >> $GITHUB_STEP_SUMMARY
+        echo "- Transaction categories seeded" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ inputs.create_admin }}" == "true" ]]; then
+          echo "- Admin user created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Admin Credentials" >> $GITHUB_STEP_SUMMARY
+          echo "- **Email:** ${{ inputs.admin_email }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Username:** ${{ inputs.admin_username }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Password:** (as provided in workflow inputs)" >> $GITHUB_STEP_SUMMARY
+        fi
