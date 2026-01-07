@@ -58,7 +58,9 @@ def register_blueprints(app):
     from lsuite.main import main_bp
     from lsuite.insights import insights_bp
     from lsuite.ai_insights import ai_insights_bp
-
+    from lsuite.business_intel import bi_bp
+    
+    app.register_blueprint(bi_bp, url_prefix='/business-intel')
     app.register_blueprint(ai_insights_bp, url_prefix='/ai-insights')
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
