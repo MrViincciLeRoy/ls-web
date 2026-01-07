@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Document{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-upload"></i> Upload Invoice or Purchase Order</h2>
+            <p class="text-muted">Upload PDF documents for automatic extraction and analysis</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('business_intel.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-upload"></i> Upload Document</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <div class="mb-4">
+                            <label for="document_type" class="form-label">Document Type *</label>
+                            <select class="form-select" name="document_type" id="document_type" required>
+                                <option value="invoice">Invoice (Money you're owed)</option>
+                                <option value="purchase_order">Purchase Order (Money you owe)</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Select the type of document you're uploading
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="file" class="form-label">PDF File *</label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="file" 
+                                   name="file" 
+                                   accept=".pdf"
+                                   required>
+                            <small class="form-text text-muted">
+                                Maximum file size: 10MB. Only PDF files are accepted.
+                            </small>
+                        </div>
+
+                        <div id="filePreview" class="mb-4" style="display: none;">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-pdf fa-3x me-3 text-danger"></i>
+                                    <div>
+                                        <strong id="fileName"></strong><br>
+                                        <small id="fileSize"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="uploadProgress" class="mb-4" style="display: none;">
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     id="progressBar"
+                                     style="width: 0%">
+                                    <span id="progressText">Uploading...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn">
+                                <i class="fas fa-upload"></i> Upload and Process
+                            </button>
+                            <a href="{{ url_for('business_intel.documents') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Processing Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> What Happens Next?</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <div class="bg-primary text-white rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <strong>1</strong>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6>Data Extraction</h6>
+                                    <small class="text-muted">
+                                        AI extracts document number, dates, amounts, and supplier details
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <div class="bg-success text-white rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <strong>2</strong>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6>Transaction Matching</h6>
+                                    <small class="text-muted">
+                                        System matches document to your bank transactions
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <div class="bg-info text-white rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <strong>3</strong>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6>AI Analysis</h6>
+                                    <small class="text-muted">
+                                        Payment status, variance detection, and insights
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <div class="bg-warning text-white rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                        <strong>4</strong>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6>Forecast Update</h6>
+                                    <small class="text-muted">
+                                        Cash flow forecast adjusts with new data
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Tips -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2">
+                            <strong>Clear PDFs work best</strong><br>
+                            <small>Ensure text is readable and not scanned images</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Standard formats</strong><br>
+                            <small>SA invoice formats are recognized automatically</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Check extraction</strong><br>
+                            <small>Review extracted data and correct if needed</small>
+                        </li>
+                        <li class="mb-2">
+                            <strong>Manual entry</strong><br>
+                            <small>If extraction fails, you can enter data manually</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Supported Formats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> Supported</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Document Types</h6>
+                    <ul class="small">
+                        <li>Tax Invoices</li>
+                        <li>Purchase Orders</li>
+                        <li>Proforma Invoices</li>
+                        <li>Credit Notes</li>
+                    </ul>
+
+                    <h6 class="mt-3">Extracted Fields</h6>
+                    <ul class="small mb-0">
+                        <li>Document number</li>
+                        <li>Date & due date</li>
+                        <li>Supplier/customer name</li>
+                        <li>Line items</li>
+                        <li>Subtotal, tax, total</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Example Documents -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-pdf"></i> Example</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-2">Your uploaded documents look like:</p>
+                    <div class="border rounded p-3 bg-light">
+                        <small class="text-muted">INVOICE #{{ "IN-D-00166" }}</small><br>
+                        <small class="text-muted">Date: 28-10-2025</small><br>
+                        <small class="text-muted">Supplier: CloutSA</small><br>
+                        <strong>Total: R68,908.00</strong>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">
+                        System will extract this information automatically
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('filePreview').style.display = 'block';
+    }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('uploadBtn');
+    const progress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+    progress.style.display = 'block';
+    
+    // Simulate progress (actual progress would need AJAX)
+    let width = 0;
+    const interval = setInterval(function() {
+        if (width >= 90) {
+            clearInterval(interval);
+        } else {
+            width += 10;
+            progressBar.style.width = width + '%';
+            progressBar.textContent = width + '%';
+        }
+    }, 500);
+});
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+</script>
+{% endblock %}
