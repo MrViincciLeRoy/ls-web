@@ -1,0 +1,258 @@
+<!-- documents.html -->
+{% extends "base.html" %}
+
+{% block title %}Documents{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-file-invoice"></i> Uploaded Documents</h2>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('business_intel.upload_document') }}" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Upload New
+            </a>
+        </div>
+    </div>
+
+    {% if documents %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Number</th>
+                    <th>Date</th>
+                    <th>Supplier</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td><span class="badge bg-primary">{{ doc.document_type }}</span></td>
+                    <td>{{ doc.document_number or 'N/A' }}</td>
+                    <td>{{ doc.document_date or 'N/A' }}</td>
+                    <td>{{ doc.supplier_name or 'Unknown' }}</td>
+                    <td>R{{ "%.2f"|format(doc.total_amount) }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if doc.processing_status == 'extracted' else 'secondary' }}">
+                            {{ doc.processing_status }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('business_intel.document_detail', id=doc.id) }}" class="btn btn-sm btn-outline-primary">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No documents uploaded yet</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+<!-- document_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Document Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Document: {{ document.document_number or document.filename }}</h2>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('business_intel.download_document', id=document.id) }}" class="btn btn-primary">
+                <i class="fas fa-download"></i> Download
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5>Details</h5>
+            <dl class="row">
+                <dt class="col-sm-3">Type</dt>
+                <dd class="col-sm-9">{{ document.document_type }}</dd>
+                
+                <dt class="col-sm-3">Number</dt>
+                <dd class="col-sm-9">{{ document.document_number or 'N/A' }}</dd>
+                
+                <dt class="col-sm-3">Date</dt>
+                <dd class="col-sm-9">{{ document.document_date or 'N/A' }}</dd>
+                
+                <dt class="col-sm-3">Supplier</dt>
+                <dd class="col-sm-9">{{ document.supplier_name or 'Unknown' }}</dd>
+                
+                <dt class="col-sm-3">Amount</dt>
+                <dd class="col-sm-9">R{{ "%.2f"|format(document.total_amount) }}</dd>
+            </dl>
+
+            {% if analysis %}
+            <h5 class="mt-4">AI Analysis</h5>
+            <p><strong>Status:</strong> {{ analysis.payment_status }}</p>
+            <ul>
+                {% for insight in analysis.insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- forecast.html -->
+{% extends "base.html" %}
+
+{% block title %}Cash Flow Forecast{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2><i class="fas fa-crystal-ball"></i> Cash Flow Forecast</h2>
+    
+    <div class="card mt-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <h4>Predicted Income</h4>
+                    <h2 class="text-success">R{{ "%.2f"|format(forecast.predicted_income) }}</h2>
+                </div>
+                <div class="col-md-4">
+                    <h4>Predicted Expenses</h4>
+                    <h2 class="text-danger">R{{ "%.2f"|format(forecast.predicted_expenses) }}</h2>
+                </div>
+                <div class="col-md-4">
+                    <h4>Net Position</h4>
+                    <h2>R{{ "%.2f"|format(forecast.predicted_balance) }}</h2>
+                </div>
+            </div>
+
+            <h5 class="mt-4">Insights</h5>
+            <ul>
+                {% for insight in forecast.insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- generate_statement.html -->
+{% extends "base.html" %}
+
+{% block title %}Generate Statement{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Generate Statement</h2>
+    
+    <form method="POST">
+        <div class="mb-3">
+            <label>Statement Type</label>
+            <select name="statement_type" class="form-control">
+                <option value="internal">Internal</option>
+                <option value="customer">Customer</option>
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label>Period Start</label>
+            <input type="date" name="period_start" class="form-control" required>
+        </div>
+        
+        <div class="mb-3">
+            <label>Period End</label>
+            <input type="date" name="period_end" class="form-control" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Generate</button>
+    </form>
+</div>
+{% endblock %}
+
+<!-- statements.html -->
+{% extends "base.html" %}
+
+{% block title %}Statements{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Business Statements</h2>
+    
+    {% if statements %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Number</th>
+                    <th>Type</th>
+                    <th>Period</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stmt in statements %}
+                <tr>
+                    <td>{{ stmt.statement_number }}</td>
+                    <td>{{ stmt.statement_type }}</td>
+                    <td>{{ stmt.period_start }} to {{ stmt.period_end }}</td>
+                    <td>R{{ "%.2f"|format(stmt.closing_balance) }}</td>
+                    <td>
+                        <a href="{{ url_for('business_intel.statement_detail', id=stmt.id) }}" class="btn btn-sm btn-outline-primary">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No statements generated yet</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+<!-- statement_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Statement Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>Statement {{ statement.statement_number }}</h2>
+    
+    <div class="card mt-4">
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Type</dt>
+                <dd class="col-sm-9">{{ statement.statement_type }}</dd>
+                
+                <dt class="col-sm-3">Period</dt>
+                <dd class="col-sm-9">{{ statement.period_start }} to {{ statement.period_end }}</dd>
+                
+                <dt class="col-sm-3">Total Invoices</dt>
+                <dd class="col-sm-9">R{{ "%.2f"|format(statement.total_invoices) }}</dd>
+                
+                <dt class="col-sm-3">Total Payments</dt>
+                <dd class="col-sm-9">R{{ "%.2f"|format(statement.total_payments) }}</dd>
+                
+                <dt class="col-sm-3">Closing Balance</dt>
+                <dd class="col-sm-9">R{{ "%.2f"|format(statement.closing_balance) }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %}
