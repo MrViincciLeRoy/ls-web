@@ -479,3 +479,255 @@ class ERPNextSyncLog(db.Model):
 
 # Alias for backwards compatibility
 SyncLog = ERPNextSyncLog
+
+"""
+Business Intelligence Models - Add to lsuite/models.py
+"""
+from datetime import datetime
+from lsuite.extensions import db
+
+class UploadedDocument(db.Model):
+    """Uploaded invoice/PO documents"""
+    __tablename__ = 'uploaded_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # File info
+    filename = db.Column(db.String(255), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False)  # invoice, purchase_order
+    file_size = db.Column(db.Integer)
+    
+    # Store PDF as binary in PostgreSQL
+    file_data = db.Column(db.LargeBinary)
+    
+    # Extracted data
+    extracted_text = db.Column(db.Text)
+    extracted_data = db.Column(db.JSON)
+    extraction_method = db.Column(db.String(50))  # rule_based, ai_assisted, manual
+    
+    # Document details
+    document_number = db.Column(db.String(100))
+    document_date = db.Column(db.Date)
+    due_date = db.Column(db.Date)
+    supplier_name = db.Column(db.String(200))
+    customer_name = db.Column(db.String(200))
+    
+    # Amounts
+    subtotal = db.Column(db.Numeric(15, 2))
+    tax_amount = db.Column(db.Numeric(15, 2))
+    total_amount = db.Column(db.Numeric(15, 2), default=0)
+    currency = db.Column(db.String(3), default='ZAR')
+    
+    # Status
+    is_reconciled = db.Column(db.Boolean, default=False)
+    processing_status = db.Column(db.String(50), default='uploaded')  # uploaded, processing, extracted, failed
+    error_message = db.Column(db.Text)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    transactions = db.relationship('DocumentTransaction', back_populates='document', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<UploadedDocument {self.document_number or self.filename}>'
+
+
+class DocumentTransaction(db.Model):
+    """Link documents to bank transactions"""
+    __tablename__ = 'document_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('uploaded_documents.id'), nullable=False)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('bank_transactions.id'), nullable=False)
+    
+    match_confidence = db.Column(db.Float)
+    match_type = db.Column(db.String(50))  # exact, fuzzy, manual
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    document = db.relationship('UploadedDocument', back_populates='transactions')
+    transaction = db.relationship('BankTransaction')
+    
+    def __repr__(self):
+        return f'<DocumentTransaction {self.id}>'
+
+
+class CashFlowForecast(db.Model):
+    """Cash flow forecasts"""
+    __tablename__ = 'cash_flow_forecasts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    forecast_date = db.Column(db.Date, nullable=False)
+    forecast_period_days = db.Column(db.Integer, default=30)
+    
+    # Predictions
+    predicted_income = db.Column(db.Numeric(15, 2))
+    predicted_expenses = db.Column(db.Numeric(15, 2))
+    predicted_balance = db.Column(db.Numeric(15, 2))
+    
+    confidence_score = db.Column(db.Float)
+    
+    # Analysis data
+    forecast_data = db.Column(db.JSON)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<CashFlowForecast {self.forecast_date}>'
+
+
+class BusinessStatement(db.Model):
+    """Generated business statements"""
+    __tablename__ = 'business_statements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    statement_type = db.Column(db.String(50), nullable=False)  # customer, internal
+    statement_number = db.Column(db.String(100), unique=True, nullable=False)
+    statement_date = db.Column(db.Date, nullable=False)
+    
+    # Period
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    
+    # Customer info (for customer statements)
+    customer_name = db.Column(db.String(200))
+    customer_email = db.Column(db.String(200))
+    
+    # Amounts
+    opening_balance = db.Column(db.Numeric(15, 2))
+    total_invoices = db.Column(db.Numeric(15, 2))
+    total_payments = db.Column(db.Numeric(15, 2))
+    closing_balance = db.Column(db.Numeric(15, 2))
+    
+    # Statement data
+    statement_data = db.Column(db.JSON)
+    
+    # Status
+    is_sent = db.Column(db.Boolean, default=False)
+    sent_date = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<BusinessStatement {self.statement_number}>'
+
+# Business Intelligence Models
+class UploadedDocument(db.Model):
+    """Uploaded invoice/PO documents stored in PostgreSQL"""
+    __tablename__ = 'uploaded_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # File info
+    filename = db.Column(db.String(255), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False)
+    file_size = db.Column(db.Integer)
+    file_data = db.Column(db.LargeBinary)  # Store PDF in PostgreSQL
+    
+    # Extracted data
+    extracted_text = db.Column(db.Text)
+    extracted_data = db.Column(db.JSON)
+    extraction_method = db.Column(db.String(50))
+    
+    # Document details
+    document_number = db.Column(db.String(100))
+    document_date = db.Column(db.Date)
+    due_date = db.Column(db.Date)
+    supplier_name = db.Column(db.String(200))
+    customer_name = db.Column(db.String(200))
+    
+    # Amounts
+    subtotal = db.Column(db.Numeric(15, 2))
+    tax_amount = db.Column(db.Numeric(15, 2))
+    total_amount = db.Column(db.Numeric(15, 2), default=0)
+    currency = db.Column(db.String(3), default='ZAR')
+    
+    # Status
+    is_reconciled = db.Column(db.Boolean, default=False)
+    processing_status = db.Column(db.String(50), default='uploaded')
+    error_message = db.Column(db.Text)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    transactions = db.relationship('DocumentTransaction', back_populates='document', cascade='all, delete-orphan')
+
+
+class DocumentTransaction(db.Model):
+    """Link documents to bank transactions"""
+    __tablename__ = 'document_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('uploaded_documents.id'), nullable=False)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('bank_transactions.id'), nullable=False)
+    
+    match_confidence = db.Column(db.Float)
+    match_type = db.Column(db.String(50))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    document = db.relationship('UploadedDocument', back_populates='transactions')
+    transaction = db.relationship('BankTransaction')
+
+
+class CashFlowForecast(db.Model):
+    """Cash flow forecasts"""
+    __tablename__ = 'cash_flow_forecasts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    forecast_date = db.Column(db.Date, nullable=False)
+    forecast_period_days = db.Column(db.Integer, default=30)
+    
+    predicted_income = db.Column(db.Numeric(15, 2))
+    predicted_expenses = db.Column(db.Numeric(15, 2))
+    predicted_balance = db.Column(db.Numeric(15, 2))
+    
+    confidence_score = db.Column(db.Float)
+    forecast_data = db.Column(db.JSON)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class BusinessStatement(db.Model):
+    """Generated business statements"""
+    __tablename__ = 'business_statements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    statement_type = db.Column(db.String(50), nullable=False)
+    statement_number = db.Column(db.String(100), unique=True, nullable=False)
+    statement_date = db.Column(db.Date, nullable=False)
+    
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    
+    customer_name = db.Column(db.String(200))
+    customer_email = db.Column(db.String(200))
+    
+    opening_balance = db.Column(db.Numeric(15, 2))
+    total_invoices = db.Column(db.Numeric(15, 2))
+    total_payments = db.Column(db.Numeric(15, 2))
+    closing_balance = db.Column(db.Numeric(15, 2))
+    
+    statement_data = db.Column(db.JSON)
+    
+    is_sent = db.Column(db.Boolean, default=False)
+    sent_date = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
