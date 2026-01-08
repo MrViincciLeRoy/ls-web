@@ -1,5 +1,5 @@
 """
-LSuite Application Factory
+LSuite Application Factory - WITH AUTO DATABASE CHECKING
 """
 import logging
 from flask import Flask, render_template
@@ -8,7 +8,7 @@ from lsuite.extensions import db, migrate, login_manager, cors
 
 
 def create_app(config_name='default'):
-    """Application factory pattern"""
+    """Application factory pattern with database validation"""
     
     app = Flask(__name__)
     
@@ -30,19 +30,27 @@ def create_app(config_name='default'):
     # Register error handlers
     register_error_handlers(app)
     
+    # Register CLI commands
+    register_cli_commands(app)
+    
+    # Check database on startup (if not in migration mode)
+    if not app.config.get('SKIP_DB_CHECK', False):
+        check_database_startup(app)
+    
     # Shell context for flask shell
     @app.shell_context_processor
     def make_shell_context():
         from lsuite import models
+        from lsuite.utils.db_checker import DatabaseChecker, check_database, fix_database
         return {
             'db': db,
             'User': models.User,
-            'GoogleCredential': models.GoogleCredential,
-            'EmailStatement': models.EmailStatement,
             'BankTransaction': models.BankTransaction,
             'TransactionCategory': models.TransactionCategory,
-            'ERPNextConfig': models.ERPNextConfig,
-            'ERPNextSyncLog': models.ERPNextSyncLog,
+            'UploadedDocument': models.UploadedDocument,
+            'check_db': check_database,
+            'fix_db': fix_database,
+            'checker': DatabaseChecker,
         }
     
     return app
@@ -72,7 +80,7 @@ def register_blueprints(app):
 
 
 def register_error_handlers(app):
-    """Register error handlers"""
+    """Register error handlers with better error messages"""
     
     @app.errorhandler(404)
     def not_found_error(error):
@@ -81,11 +89,34 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
+        app.logger.error(f"Internal error: {error}")
+        
+        # Check if it's a database error
+        error_str = str(error)
+        if 'does not exist' in error_str or 'no such table' in error_str:
+            app.logger.error("DATABASE ERROR DETECTED!")
+            app.logger.error("Run: flask db-fix")
+        
         return render_template('errors/500.html'), 500
     
     @app.errorhandler(403)
     def forbidden_error(error):
         return render_template('errors/403.html'), 403
+
+
+def register_cli_commands(app):
+    """Register custom CLI commands"""
+    from lsuite.utils.db_checker import register_db_commands
+    register_db_commands(app)
+
+
+def check_database_startup(app):
+    """Check database on application startup"""
+    try:
+        from lsuite.utils.startup_checker import check_database_on_startup
+        check_database_on_startup(app)
+    except Exception as e:
+        app.logger.warning(f"Could not run startup database check: {e}")
 
 
 def configure_logging(app):
@@ -104,8 +135,8 @@ def configure_logging(app):
     # Console handler for all modes
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
-    # Fix Windows console encoding issues
-    console_handler.stream.reconfigure(encoding='utf-8', errors='replace') if hasattr(console_handler.stream, 'reconfigure') else None
+    if hasattr(console_handler.stream, 'reconfigure'):
+        console_handler.stream.reconfigure(encoding='utf-8', errors='replace')
     
     if app.debug or app.testing:
         # Development/Testing: INFO level to console, DEBUG to file
@@ -113,6 +144,8 @@ def configure_logging(app):
         app.logger.setLevel(logging.DEBUG)
         
         # Also log to file in development
+        import os
+        os.makedirs('logs', exist_ok=True)
         file_handler = logging.FileHandler('logs/lsuite_debug.log')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
