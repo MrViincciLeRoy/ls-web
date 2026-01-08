@@ -1,5 +1,5 @@
 """
-LSuite Application Factory - WITH AUTO DATABASE CHECKING
+LSuite Application Factory - WITH AUTO TABLE CREATION
 """
 import logging
 from flask import Flask, render_template
@@ -8,7 +8,7 @@ from lsuite.extensions import db, migrate, login_manager, cors
 
 
 def create_app(config_name='default'):
-    """Application factory pattern with database validation"""
+    """Application factory pattern with auto table creation"""
     
     app = Flask(__name__)
     
@@ -33,9 +33,9 @@ def create_app(config_name='default'):
     # Register CLI commands
     register_cli_commands(app)
     
-    # Check database on startup (if not in migration mode)
+    # Auto-create missing tables on startup
     if not app.config.get('SKIP_DB_CHECK', False):
-        check_database_startup(app)
+        auto_create_missing_tables(app)
     
     # Shell context for flask shell
     @app.shell_context_processor
@@ -91,11 +91,10 @@ def register_error_handlers(app):
         db.session.rollback()
         app.logger.error(f"Internal error: {error}")
         
-        # Check if it's a database error
         error_str = str(error)
         if 'does not exist' in error_str or 'no such table' in error_str:
             app.logger.error("DATABASE ERROR DETECTED!")
-            app.logger.error("Run: flask db-fix")
+            app.logger.error("Attempting auto-fix on next restart...")
         
         return render_template('errors/500.html'), 500
     
@@ -110,13 +109,14 @@ def register_cli_commands(app):
     register_db_commands(app)
 
 
-def check_database_startup(app):
-    """Check database on application startup"""
+def auto_create_missing_tables(app):
+    """Automatically create missing tables on startup"""
     try:
-        from lsuite.utils.startup_checker import check_database_on_startup
-        check_database_on_startup(app)
+        from lsuite.utils.auto_table_creator import auto_create_tables
+        with app.app_context():
+            auto_create_tables(app)
     except Exception as e:
-        app.logger.warning(f"Could not run startup database check: {e}")
+        app.logger.error(f"Auto-create tables failed: {e}")
 
 
 def configure_logging(app):
