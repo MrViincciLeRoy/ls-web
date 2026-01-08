@@ -1,28 +1,21 @@
 """
-Business Intelligence Routes
+Business Intelligence Routes - Fixed with PostgreSQL storage
 """
-import os
 import logging
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
-from flask import render_template, request, jsonify, redirect, url_for, flash, send_file
+from flask import render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from lsuite.business_intel import bi_bp
 from lsuite.extensions import db
-from lsuite.models import BankTransaction
+from lsuite.models import BankTransaction, UploadedDocument, DocumentTransaction, CashFlowForecast, BusinessStatement
 from lsuite.business_intel.pdf_service import DocumentExtractor
 from lsuite.business_intel.forecast_service import CashFlowForecaster
 
 logger = logging.getLogger(__name__)
 
-# Import models - need to add these to main models.py
-try:
-    from lsuite.models import UploadedDocument, DocumentTransaction, CashFlowForecast, BusinessStatement
-except ImportError:
-    logger.warning("Business Intelligence models not found - add to models.py")
-
 ALLOWED_EXTENSIONS = {'pdf'}
-UPLOAD_FOLDER = 'uploads/documents'
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -43,35 +36,29 @@ def dashboard():
     ).order_by(BankTransaction.date.desc()).all()
     
     # Get uploaded documents
-    try:
-        documents = UploadedDocument.query.filter_by(
-            user_id=current_user.id
-        ).order_by(UploadedDocument.created_at.desc()).limit(20).all()
-    except:
-        documents = []
+    documents = UploadedDocument.query.filter_by(
+        user_id=current_user.id
+    ).order_by(UploadedDocument.created_at.desc()).limit(20).all()
     
     # Calculate summary stats
     total_income = sum(float(t.deposit or 0) for t in transactions)
     total_expenses = sum(float(t.withdrawal or 0) for t in transactions)
     
-    try:
-        total_invoices = sum(
-            float(d.total_amount) for d in documents 
-            if d.document_type == 'invoice' and not d.is_reconciled
-        )
-        total_pos = sum(
-            float(d.total_amount) for d in documents 
-            if d.document_type == 'purchase_order' and not d.is_reconciled
-        )
-    except:
-        total_invoices = 0
-        total_pos = 0
+    total_invoices = sum(
+        float(d.total_amount) for d in documents 
+        if d.document_type == 'invoice' and not d.is_reconciled
+    )
+    total_pos = sum(
+        float(d.total_amount) for d in documents 
+        if d.document_type == 'purchase_order' and not d.is_reconciled
+    )
     
     # Generate forecast
     forecaster = CashFlowForecaster()
     try:
         forecast = forecaster.generate_forecast(transactions, documents, period_days=30)
-    except:
+    except Exception as e:
+        logger.error(f"Forecast error: {e}")
         forecast = {
             'predicted_income': 0,
             'predicted_expenses': 0,
@@ -83,7 +70,8 @@ def dashboard():
     # Analyze fees
     try:
         fee_analysis = forecaster.analyze_transaction_fees(transactions)
-    except:
+    except Exception as e:
+        logger.error(f"Fee analysis error: {e}")
         fee_analysis = {'total_fees': 0, 'insights': []}
     
     return render_template('business_intel/dashboard.html',
@@ -103,7 +91,7 @@ def dashboard():
 @bi_bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_document():
-    """Upload invoice or PO"""
+    """Upload invoice or PO - Store in PostgreSQL"""
     
     if request.method == 'POST':
         if 'file' not in request.files:
@@ -119,35 +107,46 @@ def upload_document():
         
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{timestamp}_{filename}"
             
-            # Ensure upload folder exists
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(filepath)
+            # Read file into memory
+            file_data = file.read()
+            file_size = len(file_data)
             
-            # Create document record
+            if file_size > MAX_FILE_SIZE:
+                flash(f'File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB', 'danger')
+                return redirect(request.url)
+            
+            # Create document record with binary data
             try:
                 document = UploadedDocument(
                     user_id=current_user.id,
-                    filename=file.filename,
+                    filename=filename,
                     document_type=doc_type,
-                    file_path=filepath,
-                    file_size=os.path.getsize(filepath),
+                    file_size=file_size,
+                    file_data=file_data,  # Store in PostgreSQL
                     total_amount=0,
                     processing_status='uploaded'
                 )
                 db.session.add(document)
                 db.session.commit()
                 
-                # Extract data in background (or inline for simplicity)
+                # Extract data
                 try:
+                    import tempfile
+                    import os
+                    
+                    # Create temporary file for extraction
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+                        tmp.write(file_data)
+                        tmp_path = tmp.name
+                    
                     extractor = DocumentExtractor()
-                    result = extractor.extract_from_pdf(filepath)
+                    result = extractor.extract_from_pdf(tmp_path)
+                    
+                    # Clean up temp file
+                    os.unlink(tmp_path)
                     
                     if result['success']:
-                        # Update document with extracted data
                         data = result['data']
                         document.extracted_text = result['text']
                         document.extracted_data = data
@@ -181,6 +180,7 @@ def upload_document():
                     return redirect(url_for('business_intel.documents'))
             
             except Exception as e:
+                db.session.rollback()
                 logger.error(f"Document creation failed: {e}")
                 flash(f'Upload failed: {str(e)}', 'danger')
                 return redirect(request.url)
@@ -197,13 +197,9 @@ def upload_document():
 def documents():
     """List uploaded documents"""
     
-    try:
-        docs = UploadedDocument.query.filter_by(
-            user_id=current_user.id
-        ).order_by(UploadedDocument.created_at.desc()).all()
-    except:
-        docs = []
-        flash('Document tracking not yet configured. Run database migrations.', 'warning')
+    docs = UploadedDocument.query.filter_by(
+        user_id=current_user.id
+    ).order_by(UploadedDocument.created_at.desc()).all()
     
     return render_template('business_intel/documents.html', documents=docs)
 
@@ -213,32 +209,59 @@ def documents():
 def document_detail(id):
     """Document detail with AI analysis"""
     
+    document = UploadedDocument.query.get_or_404(id)
+    
+    if document.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('business_intel.documents'))
+    
+    # Get related transactions
+    transactions = BankTransaction.query.filter(
+        BankTransaction.user_id == current_user.id
+    ).order_by(BankTransaction.date.desc()).limit(100).all()
+    
+    # Get AI analysis
     try:
-        document = UploadedDocument.query.get_or_404(id)
-        
-        if document.user_id != current_user.id:
-            flash('Unauthorized', 'danger')
-            return redirect(url_for('business_intel.documents'))
-        
-        # Get related transactions
-        transactions = BankTransaction.query.filter(
-            BankTransaction.user_id == current_user.id
-        ).order_by(BankTransaction.date.desc()).limit(100).all()
-        
-        # Get AI analysis
         extractor = DocumentExtractor()
         analysis = extractor.analyze_document_with_context(document, transactions)
-        
-        return render_template('business_intel/document_detail.html',
-            document=document,
-            analysis=analysis,
-            transactions=transactions[:20]
-        )
-    
     except Exception as e:
-        logger.error(f"Document detail error: {e}")
-        flash(f'Error loading document: {str(e)}', 'danger')
+        logger.error(f"Analysis error: {e}")
+        analysis = {
+            'payment_status': 'unknown',
+            'insights': [],
+            'risk_flags': []
+        }
+    
+    return render_template('business_intel/document_detail.html',
+        document=document,
+        analysis=analysis,
+        transactions=transactions[:20]
+    )
+
+
+@bi_bp.route('/documents/<int:id>/download')
+@login_required
+def download_document(id):
+    """Download original PDF from PostgreSQL"""
+    from flask import send_file
+    import io
+    
+    document = UploadedDocument.query.get_or_404(id)
+    
+    if document.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
         return redirect(url_for('business_intel.documents'))
+    
+    if not document.file_data:
+        flash('File not found', 'danger')
+        return redirect(url_for('business_intel.document_detail', id=id))
+    
+    return send_file(
+        io.BytesIO(document.file_data),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=document.filename
+    )
 
 
 @bi_bp.route('/documents/<int:id>/analyze', methods=['POST'])
@@ -246,16 +269,16 @@ def document_detail(id):
 def analyze_document(id):
     """Run AI analysis on document"""
     
+    document = UploadedDocument.query.get_or_404(id)
+    
+    if document.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    transactions = BankTransaction.query.filter(
+        BankTransaction.user_id == current_user.id
+    ).order_by(BankTransaction.date.desc()).limit(100).all()
+    
     try:
-        document = UploadedDocument.query.get_or_404(id)
-        
-        if document.user_id != current_user.id:
-            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
-        
-        transactions = BankTransaction.query.filter(
-            BankTransaction.user_id == current_user.id
-        ).order_by(BankTransaction.date.desc()).limit(100).all()
-        
         extractor = DocumentExtractor()
         analysis = extractor.analyze_document_with_context(document, transactions)
         
@@ -287,20 +310,14 @@ def forecast():
         BankTransaction.date >= start_date.date()
     ).all()
     
-    try:
-        documents = UploadedDocument.query.filter_by(
-            user_id=current_user.id
-        ).all()
-    except:
-        documents = []
+    documents = UploadedDocument.query.filter_by(
+        user_id=current_user.id
+    ).all()
     
     forecaster = CashFlowForecaster()
     forecast_data = forecaster.generate_forecast(transactions, documents, period_days=days_forecast)
     
-    # Analyze patterns
     patterns = forecaster._analyze_patterns(transactions)
-    
-    # Fee analysis
     fee_analysis = forecaster.analyze_transaction_fees(transactions)
     
     return render_template('business_intel/forecast.html',
@@ -323,18 +340,15 @@ def generate_statement():
         period_start = datetime.strptime(request.form['period_start'], '%Y-%m-%d').date()
         period_end = datetime.strptime(request.form['period_end'], '%Y-%m-%d').date()
         
-        # Get transactions for period
         transactions = BankTransaction.query.filter(
             BankTransaction.user_id == current_user.id,
             BankTransaction.date >= period_start,
             BankTransaction.date <= period_end
         ).order_by(BankTransaction.date).all()
         
-        # Calculate totals
         total_income = sum(float(t.deposit or 0) for t in transactions)
         total_expenses = sum(float(t.withdrawal or 0) for t in transactions)
         
-        # For customer statement, would need customer selection
         customer_name = request.form.get('customer_name', '')
         customer_email = request.form.get('customer_email', '')
         
@@ -348,7 +362,7 @@ def generate_statement():
                 period_end=period_end,
                 customer_name=customer_name,
                 customer_email=customer_email,
-                opening_balance=0,  # Would calculate from previous period
+                opening_balance=0,
                 total_invoices=total_income,
                 total_payments=total_expenses,
                 closing_balance=total_income - total_expenses,
@@ -373,6 +387,7 @@ def generate_statement():
             return redirect(url_for('business_intel.statement_detail', id=statement.id))
         
         except Exception as e:
+            db.session.rollback()
             logger.error(f"Statement generation failed: {e}")
             flash(f'Failed to generate statement: {str(e)}', 'danger')
             return redirect(request.url)
@@ -385,13 +400,9 @@ def generate_statement():
 def statements():
     """List generated statements"""
     
-    try:
-        stmts = BusinessStatement.query.filter_by(
-            user_id=current_user.id
-        ).order_by(BusinessStatement.created_at.desc()).all()
-    except:
-        stmts = []
-        flash('Statement tracking not configured. Run database migrations.', 'warning')
+    stmts = BusinessStatement.query.filter_by(
+        user_id=current_user.id
+    ).order_by(BusinessStatement.created_at.desc()).all()
     
     return render_template('business_intel/statements.html', statements=stmts)
 
@@ -401,16 +412,10 @@ def statements():
 def statement_detail(id):
     """View statement detail"""
     
-    try:
-        statement = BusinessStatement.query.get_or_404(id)
-        
-        if statement.user_id != current_user.id:
-            flash('Unauthorized', 'danger')
-            return redirect(url_for('business_intel.statements'))
-        
-        return render_template('business_intel/statement_detail.html', statement=statement)
+    statement = BusinessStatement.query.get_or_404(id)
     
-    except Exception as e:
-        logger.error(f"Statement detail error: {e}")
-        flash(f'Error loading statement: {str(e)}', 'danger')
+    if statement.user_id != current_user.id:
+        flash('Unauthorized', 'danger')
         return redirect(url_for('business_intel.statements'))
+    
+    return render_template('business_intel/statement_detail.html', statement=statement)
