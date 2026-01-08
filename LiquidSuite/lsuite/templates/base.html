@@ -122,41 +122,42 @@
                                 <i class="fas fa-history"></i> Sync Logs
                             </a>
                         </li>
+                        
                         <li class="nav-item mt-3">
-    <h6 class="sidebar-heading px-3 text-muted">
-        <i class="fas fa-chart-pie"></i> Business Intel
-    </h6>
-</li>
-<li class="nav-item">
-    <a class="nav-link {% if request.endpoint and 'business_intel.dashboard' in request.endpoint %}active{% endif %}" 
-       href="{{ url_for('business_intel.dashboard') }}">
-        <i class="fas fa-chart-pie"></i> BI Dashboard
-    </a>
-</li>
-<li class="nav-item">
-    <a class="nav-link {% if request.endpoint and 'business_intel.upload' in request.endpoint %}active{% endif %}" 
-       href="{{ url_for('business_intel.upload') }}">
-        <i class="fas fa-upload"></i> Upload Document
-    </a>
-</li>
-<li class="nav-item">
-    <a class="nav-link {% if request.endpoint and 'business_intel.documents' in request.endpoint %}active{% endif %}" 
-       href="{{ url_for('business_intel.documents') }}">
-        <i class="fas fa-file-invoice"></i> Documents
-    </a>
-</li>
-<li class="nav-item">
-    <a class="nav-link {% if request.endpoint and 'business_intel.forecast' in request.endpoint %}active{% endif %}" 
-       href="{{ url_for('business_intel.forecast') }}">
-        <i class="fas fa-crystal-ball"></i> Forecast
-    </a>
-</li>
-<li class="nav-item">
-    <a class="nav-link {% if request.endpoint and 'business_intel.statements' in request.endpoint %}active{% endif %}" 
-       href="{{ url_for('business_intel.statements') }}">
-        <i class="fas fa-file-alt"></i> Statements
-    </a>
-                            </li>
+                            <h6 class="sidebar-heading px-3 text-muted">
+                                <i class="fas fa-chart-pie"></i> Business Intel
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and 'business_intel.dashboard' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('business_intel.dashboard') }}">
+                                <i class="fas fa-chart-pie"></i> BI Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and 'business_intel.upload_document' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('business_intel.upload_document') }}">
+                                <i class="fas fa-upload"></i> Upload Document
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and 'business_intel.documents' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('business_intel.documents') }}">
+                                <i class="fas fa-file-invoice"></i> Documents
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and 'business_intel.forecast' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('business_intel.forecast') }}">
+                                <i class="fas fa-crystal-ball"></i> Forecast
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint and 'business_intel.statements' in request.endpoint %}active{% endif %}" 
+                               href="{{ url_for('business_intel.statements') }}">
+                                <i class="fas fa-file-alt"></i> Statements
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
