@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Flow Forecast{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-crystal-ball"></i> Cash Flow Forecast</h2>
+            <p class="text-muted">AI-powered cash flow predictions and insights</p>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('business_intel.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Forecast Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Predicted Income</h6>
+                    <h2 class="text-success">R{{ "%.2f"|format(forecast.predicted_income) }}</h2>
+                    <small class="text-muted">Next {{ days_forecast }} days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Predicted Expenses</h6>
+                    <h2 class="text-danger">R{{ "%.2f"|format(forecast.predicted_expenses) }}</h2>
+                    <small class="text-muted">Next {{ days_forecast }} days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-{{ 'success' if forecast.predicted_balance > 0 else 'danger' }}">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Net Position</h6>
+                    <h2 class="text-{{ 'success' if forecast.predicted_balance > 0 else 'danger' }}">
+                        R{{ "%.2f"|format(forecast.predicted_balance) }}
+                    </h2>
+                    <small class="text-muted">Projected balance</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confidence Score -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6>Forecast Confidence Score</h6>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar bg-info" 
+                             style="width: {{ forecast.confidence_score * 100 }}%">
+                            {{ "%.0f"|format(forecast.confidence_score * 100) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">Based on {{ days_history }} days of historical data</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Insights -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Key Insights</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        {% for insight in forecast.insights %}
+                        <li>{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    {% if forecast.get('risk_factors') %}
+                    <div class="alert alert-warning mt-3">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Risk Factors</h6>
+                        <ul class="mb-0">
+                            {% for risk in forecast.risk_factors %}
+                            <li>{{ risk }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if forecast.get('recommendations') %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <h6><i class="fas fa-check-circle"></i> Recommendations</h6>
+                        <ul class="mb-0">
+                            {% for rec in forecast.recommendations %}
+                            <li>{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Patterns -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-redo"></i> Patterns</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Daily Averages</h6>
+                    <dl>
+                        <dt>Income:</dt>
+                        <dd class="text-success">R{{ "%.2f"|format(patterns.average_daily_income) }}</dd>
+                        
+                        <dt>Expenses:</dt>
+                        <dd class="text-danger">R{{ "%.2f"|format(patterns.average_daily_expense) }}</dd>
+                    </dl>
+
+                    <hr>
+
+                    <h6>Recurring Transactions</h6>
+                    <p class="mb-0">
+                        <span class="badge bg-success">{{ patterns.recurring_income|length }} Income</span>
+                        <span class="badge bg-danger">{{ patterns.recurring_expenses|length }} Expenses</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Fees</h5>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-danger">R{{ "%.2f"|format(fee_analysis.total_fees) }}</h3>
+                    <small class="text-muted">Total fees detected</small>
+                    
+                    {% if fee_analysis.get('insights') %}
+                    <hr>
+                    <ul class="small mb-0">
+                        {% for insight in fee_analysis.insights %}
+                        <li>{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Breakdown -->
+    {% if forecast.get('weekly_breakdown') %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-calendar-week"></i> Weekly Breakdown</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Week</th>
+                                    <th class="text-end">Income</th>
+                                    <th class="text-end">Expenses</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for week in forecast.weekly_breakdown %}
+                                <tr>
+                                    <td>Week {{ week.week }}</td>
+                                    <td class="text-end text-success">R{{ "%.2f"|format(week.income) }}</td>
+                                    <td class="text-end text-danger">R{{ "%.2f"|format(week.expenses) }}</td>
+                                    <td class="text-end">
+                                        <strong class="text-{{ 'success' if week.balance > 0 else 'danger' }}">
+                                            R{{ "%.2f"|format(week.balance) }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Major Items -->
+    {% if forecast.get('major_upcoming') %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Upcoming Major Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in forecast.major_upcoming %}
+                                <tr>
+                                    <td>{{ item.date }}</td>
+                                    <td>{{ item.description }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if item.type == 'income' else 'danger' }}">
+                                            {{ item.type|title }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-{{ 'success' if item.type == 'income' else 'danger' }}">
+                                            R{{ "%.2f"|format(item.amount) }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
